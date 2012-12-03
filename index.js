@@ -29,6 +29,21 @@ Crypt.prototype.encrypt = function (data, f)
     f(null, { iv: iv.toString('base64'), data: edata });
 };
 
+Crypt.prototype.maybe_encrypt = function (encrypt, data, f)
+{
+    if (encrypt)
+    {
+        this.encrypt(data, function (err, edata)
+        {
+            f(err, { encrypted: true, data: edata });
+        });
+    }
+    else
+    {
+        f(null, { encrypted: false, data: data });
+    }
+};
+
 Crypt.prototype.decrypt = function (data, f)
 {
     var decipher = crypto.createDecipheriv(
@@ -50,6 +65,18 @@ Crypt.prototype.decrypt = function (data, f)
     else
     {
         f("digest mismatch");
+    }
+};
+
+Crypt.prototype.maybe_decrypt = function (data, f)
+{
+    if (data.encrypted)
+    {
+        this.decrypt(data.data, f);
+    }
+    else
+    {
+        f(null, data.data);
     }
 };
 
