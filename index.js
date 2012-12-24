@@ -31,6 +31,13 @@ Crypt.prototype.encrypt = function (data, f)
 
 Crypt.prototype.maybe_encrypt = function (encrypt, data, f)
 {
+    if (arguments.length === 2)
+    {
+        f = data;
+        data = encrypt;
+        encrypt = !!key;
+    }
+
     if (encrypt)
     {
         this.encrypt(data, function (err, edata)
