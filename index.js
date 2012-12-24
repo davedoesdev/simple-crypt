@@ -31,11 +31,11 @@ Crypt.prototype.encrypt = function (data, f)
 
 Crypt.prototype.maybe_encrypt = function (encrypt, data, f)
 {
-    if (arguments.length === 2)
+    if (f === undefined)
     {
         f = data;
         data = encrypt;
-        encrypt = !!key;
+        encrypt = this.key && this.key.length;
     }
 
     if (encrypt)
@@ -75,11 +75,28 @@ Crypt.prototype.decrypt = function (data, f)
     }
 };
 
-Crypt.prototype.maybe_decrypt = function (data, f)
+Crypt.prototype.maybe_decrypt = function (data, f, get_key)
 {
     if (data.encrypted)
     {
-        this.decrypt(data.data, f);
+        if (get_key)
+        {
+            get_key(function (err, key)
+            {
+                if (err)
+                {
+                    f(err);
+                }
+                else
+                {
+                    new Crypt(key).decrypt(data.data, f);
+                }
+            });
+        }
+        else
+        {
+            this.decrypt(data.data, f);
+        }
     }
     else
     {
