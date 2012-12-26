@@ -1,0 +1,29 @@
+<html>
+<head>
+<script type="text/javascript" src="crypto/aes.min.js"></script>
+<script type="text/javascript" src="crypto/sha256-min.js"></script>
+<script type="text/javascript" src="index.js"></script>
+<script type="text/javascript" src="test.js"></script>
+<script type="text/javascript">
+// test encrypted data from node
+new Crypt(key).maybe_decrypt(
+{ encrypted: true,
+  data: 
+     { iv: 'GImvvXYbpVq1Y5zvO4d3QQ==',
+          data: 'a9FIP8pn+RPk9zsosb+vK1Lt2vjUh2/jlW5i5fUxB8h0etA9Qja0/qlISNb9HpCzpPsb4BR9cxLDOOHnTdDjUNpaMM/ADG58kVUOD/7Du0c=' } },
+function (err, data)
+{
+    if (err)
+    {
+        console.error(err);
+    }
+    else
+    {
+        console.log(data);
+    }
+})
+</script>
+</head>
+<body>
+</body>
+</html>
