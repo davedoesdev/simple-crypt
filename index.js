@@ -174,27 +174,82 @@ else
     };
 }
 
-Crypt.prototype.maybe_encrypt = function (encrypt, data, f)
+Crypt.prototype.maybe_encrypt = function (arg_encrypt,
+                                          arg_data,
+                                          arg_f,
+                                          arg_get_key)
 {
     "use strict";
 
-    if (f === undefined)
+    var encrypt, data, f, get_key, get_key_data,
+
+    encrypted = function (err, edata)
     {
-        f = data;
-        data = encrypt;
-        encrypt = this.key && this.key.length;
+        if (err)
+        {
+            f(err);
+        }
+        else
+        {
+            f(null, { encrypted: true, data: edata });
+        }
+    },
+    
+    not_encrypted = function ()
+    {
+        f(null, { encrypted: false, data: data });
+    };
+    
+
+    if (typeof arg_data === 'function')
+    {
+        get_key_data = Array.prototype.slice.call(arguments, 3);
+        get_key = arg_f;
+        f = arg_data;
+        data = arg_encrypt;
+        encrypt = (get_key !== undefined) || (this.key && this.key.length);
+    }
+    else
+    {
+        get_key_data = Array.prototype.slice.call(arguments, 4);
+        get_key = arg_get_key;
+        f = arg_f;
+        data = arg_data;
+        encrypt = arg_encrypt;
     }
 
     if (encrypt)
     {
-        this.encrypt(data, function (err, edata)
+        if (get_key !== undefined)
         {
-            f(err, { encrypted: true, data: edata });
-        });
+            get_key_data.unshift(data);
+
+            get_key_data.push(function (err, key)
+            {
+                if (err)
+                {
+                    f(err);
+                }
+                else if (key && key.length)
+                {
+                    new Crypt(key).encrypt(data, encrypted);
+                }
+                else
+                {
+                    not_encrypted();
+                }
+            });
+
+            get_key.apply(this, get_key_data);
+        }
+        else
+        {
+            this.encrypt(data, encrypted);
+        }
     }
     else
     {
-        f(null, { encrypted: false, data: data });
+        not_encrypted();
     }
 };
 
@@ -204,9 +259,13 @@ Crypt.prototype.maybe_decrypt = function (data, f, get_key)
 
     if (data.encrypted)
     {
-        if (get_key)
+        if (get_key !== undefined)
         {
-            get_key(function (err, key)
+            var get_key_data = Array.prototype.slice.call(arguments, 3);
+
+            get_key_data.unshift(data);
+
+            get_key_data.push(function (err, key)
             {
                 if (err)
                 {
@@ -217,6 +276,8 @@ Crypt.prototype.maybe_decrypt = function (data, f, get_key)
                     new Crypt(key).decrypt(data.data, f);
                 }
             });
+
+            get_key.apply(this, get_key_data);
         }
         else
         {
