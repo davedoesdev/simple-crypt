@@ -222,8 +222,6 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
     {
         if (get_key !== undefined)
         {
-            get_key_data.unshift(data);
-
             get_key_data.push(function (err, key)
             {
                 if (err)
@@ -262,8 +260,6 @@ Crypt.prototype.maybe_decrypt = function (data, f, get_key)
         if (get_key !== undefined)
         {
             var get_key_data = Array.prototype.slice.call(arguments, 3);
-
-            get_key_data.unshift(data);
 
             get_key_data.push(function (err, key)
             {
