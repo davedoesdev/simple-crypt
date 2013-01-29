@@ -13,6 +13,13 @@
 
 // Note: Keep an eye on http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-00
 
+// Warning! The Crypt class only uses symmetric keys. You may well need
+// something different. It does, however, support metadata for adding extra
+// information about the encrypted data and its key. For example, you could
+// encrypt the symmetric key with a public key and put that in the metadata.
+// You could also sign the data with a private key and add the signature to the
+// metadata.
+
 var Crypt;
 
 if (typeof require === 'function')
@@ -183,7 +190,7 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
 
     var encrypt, data, f, get_key, get_key_data,
 
-    encrypted = function (err, edata)
+    encrypted = function (err, edata, metadata)
     {
         if (err)
         {
@@ -191,7 +198,7 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
         }
         else
         {
-            f(null, { encrypted: true, data: edata });
+            f(null, { encrypted: true, data: edata, metadata: metadata });
         }
     },
     
@@ -222,7 +229,7 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
     {
         if (get_key !== undefined)
         {
-            get_key_data.push(function (err, key)
+            get_key_data.push(function (err, key, metadata)
             {
                 if (err)
                 {
@@ -230,7 +237,10 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
                 }
                 else if (key && key.length)
                 {
-                    new Crypt(key).encrypt(data, encrypted);
+                    new Crypt(key).encrypt(data, function (err, data)
+                    {
+                        encrypted(err, data, metadata);
+                    });
                 }
                 else
                 {
@@ -260,6 +270,8 @@ Crypt.prototype.maybe_decrypt = function (data, f, get_key)
         if (get_key !== undefined)
         {
             var get_key_data = Array.prototype.slice.call(arguments, 3);
+
+            get_key_data.unshift(data.metadata);
 
             get_key_data.push(function (err, key)
             {
