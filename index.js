@@ -20,7 +20,7 @@
 // You could also sign the data with a private key and add the signature to the
 // metadata.
 
-var Crypt;
+var Crypt, SHA256_SIZE = 32, AES_BLOCK_SIZE = 16;
 
 if (typeof require === 'function')
 {
@@ -36,18 +36,20 @@ if (typeof require === 'function')
     {
         "use strict";
 
-        var iv = crypto.randomBytes(16),
+        var iv = crypto.randomBytes(AES_BLOCK_SIZE),
+            iv64 = iv.toString('base64'),
             cipher = crypto.createCipheriv('AES-128-CBC', this.key, iv),
-            jdata = JSON.stringify(data),
+            jdata = new Buffer(JSON.stringify(data), 'utf-8'),
             edata = cipher.update(crypto.createHash('sha256')
-                        .update(jdata, 'utf8')
+                        .update(iv64, 'utf8')
+                        .update(jdata)
                         .digest('hex'), 'utf8', 'base64');
 
         edata += cipher.update(jdata, 'utf8', 'base64');
 
         edata += cipher.final('base64');
 
-        f(null, { iv: iv.toString('base64'), data: edata });
+        f(null, { iv: iv64, data: edata });
     };
 
     Crypt.prototype.decrypt = function (data, f)
@@ -63,10 +65,12 @@ if (typeof require === 'function')
 
         ddata += decipher.final('utf8');
 
-        jdata = ddata.substr(64);
+        jdata = ddata.substr(SHA256_SIZE * 2);
 
-        if (crypto.createHash('sha256').update(jdata, 'utf8').digest('hex') ===
-            ddata.substr(0, 64))
+        if (crypto.createHash('sha256')
+                .update(data.iv)
+                .update(jdata, 'utf8')
+                .digest('hex') === ddata.substr(0, SHA256_SIZE * 2))
         {
             try
             {
@@ -88,9 +92,7 @@ if (typeof require === 'function')
 }
 else
 {
-    var SHA256_SIZE = 32, AES_BLOCK_SIZE = 16,
-
-    get_char_codes = function(s)
+    var get_char_codes = function(s)
     {
         "use strict";
 
@@ -129,20 +131,21 @@ else
         "use strict";
 
         var iv = new Uint8Array(AES_BLOCK_SIZE),
+            iv64,
             // http://ecmanaut.blogspot.co.uk/2006/07/encoding-decoding-utf8-in-javascript.html
             jdata = unescape(encodeURIComponent(JSON.stringify(data))),
             edata;
 
         window.crypto.getRandomValues(iv);
+        iv64 = window.btoa(String.fromCharCode.apply(String, Array.prototype.slice.call(iv)));
 
         edata = slowAES.encrypt(
-            get_char_codes(rstr2hex(rstr_sha256(jdata)) + jdata),
+            get_char_codes(rstr2hex(rstr_sha256(iv64 + jdata)) + jdata),
             slowAES.modeOfOperation.CBC,
             this.key,
             iv);
 
-        f(null, { iv: window.btoa(String.fromCharCode.apply(String, Array.prototype.slice.call(iv))),
-                  data: window.btoa(String.fromCharCode.apply(String, edata)) });
+        f(null, { iv: iv64, data: window.btoa(String.fromCharCode.apply(String, edata)) });
     };
 
     Crypt.prototype.decrypt = function (data, f)
@@ -160,7 +163,7 @@ else
 
         ddata = ddata.substr(SHA256_SIZE * 2);
 
-        if (rstr_sha256(ddata) === digest)
+        if (rstr_sha256(data.iv + ddata) === digest)
         {
             try
             {

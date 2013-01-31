@@ -34,8 +34,8 @@ new Crypt(key).maybe_decrypt(
 {
     encrypted: true,
     data: {
-        data: "UC2Am5G0J2DpJqRUaqXO8A8eRj7CfDI9zNAtTeK2gGMLCfCXUPeIVCuWHNx8krH04SQdQjVDpbXLmf5HPcRMCdQzetmceombNsdZT842O0U=",
-        iv: "VteNLCjURzvupgVAYi9Xog=="
+        data: "nC/t3gFEx/0c4Jn6asXrYh4kaCSWk8j5JkifrtS+jS6FtiAxLEggeIP5GpO07yu8V46w/7eMSD1WRd5uPw8q3adtt5N2qXiUEzXcisPdvf0=",
+        iv: "N9wq83DtJC4IEiwH1FqiOg=="
     }
 },
 function (err, data)
