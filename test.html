@@ -9,8 +9,8 @@
 new Crypt(key).maybe_decrypt(
 { encrypted: true,
   data: {
-      iv: 'NoH8mAkAIA3frLImndY19w==',
-      data: '77WGWuTsZJjubhbSQnPkUqVKiZuicMEP8w2n4h/VfXtXuH3ly7OvycZTMqM63dqRU0Xi85eVHYrSIZ+Tm24jMIsGXNQh0KjugtCc6Jin25k=' } },
+      iv: '3ya7X88TaxFloNXCTieYLQ==',
+      data: '7VtIiFYp+gCUnLJ9nDDG9CEweFsMolTsth8EImoMpLZTxJV1kqOIxusDSQIqCpr/ihL1Ay9+NOUVTHlOvYH3xVl1kpB2J7CjFj8R9L79mfM=' } },
 function (err, data)
 {
     if (err)
@@ -21,7 +21,24 @@ function (err, data)
     {
         console.log(data);
     }
-})
+});
+// test signed data from node
+new Crypt(key).maybe_verify(
+{ signed: true,
+  data: {
+      data: '"foobar"',
+      signature: 'C/k9Am99a14CtCAPrrI+/0XqieB0S+/I7dNgijTYboU=' } },
+function (err, data)
+{
+    if (err)
+    {
+        console.error(err);
+    }
+    else
+    {
+        console.log(data);
+    }
+});
 </script>
 </head>
 <body>
