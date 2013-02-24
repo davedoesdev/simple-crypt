@@ -95,3 +95,60 @@ function (err, data)
     }
 });
 
+// test performance
+
+function test_sign(i, n, d)
+{
+    "use strict";
+
+    if (i === n)
+    {
+        console.log('sym sign: ' + (new Date() - d));
+        return;
+    }
+
+    new Crypt(key).maybe_sign(data, function (err, sdata)
+    {
+        new Crypt(key).maybe_verify(sdata, function (err, vdata)
+        {
+            if (err)
+            {
+                console.error(err);
+            }
+            else
+            {
+                setTimeout(function () { test_sign(i + 1, n, d); }, 0);
+            }
+        });
+    });
+}
+
+function test_encrypt(i, n, d)
+{
+    "use strict";
+
+    if (i === n)
+    {
+        console.log('sym enc: ' + (new Date() - d));
+        test_sign(0, n, new Date());
+        return;
+    }
+
+    new Crypt(key).maybe_encrypt(data, function (err, edata)
+    {
+        new Crypt(key).maybe_decrypt(edata, function (err, ddata)
+        {
+            if (err)
+            {
+                console.error(err);
+            }
+            else
+            {
+                setTimeout(function () { test_encrypt(i + 1, n, d); }, 0);
+            }
+        });
+    });
+}
+
+test_encrypt(0, 5000, new Date());
+
