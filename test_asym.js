@@ -1,4 +1,4 @@
-/*jslint es5: true */
+/*jslint es5: true, unparam: true */
 /*global require,
          Crypt: true */
 
