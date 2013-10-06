@@ -13,35 +13,49 @@
          b64tohex */
 
 // Simple symmetric and asymmetric crypto.
-// Note: Keep an eye on http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-00
+// Note: Keep an eye on http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-02
 
-var Crypt,
-    SHA256_SIZE = 32,
+var version = 1;
+
+var SHA256_SIZE = 32,
     AES_BLOCK_SIZE = 16,
-    AES_128_KEY_SIZE = 16;
+    AES_128_KEY_SIZE = 16,
+
+Crypt = function (key)
+{
+    "use strict";
+    this.key = Crypt.parse_key(key);
+};
+
+Crypt.check_version = function (data, f)
+{
+    "use strict";
+
+    if (data.version > version)
+    {
+        f('unsupported version');
+        return false;
+    }
+    
+    return true;
+};
 
 if (typeof require === 'function')
 {
     var crypto = require('crypto'),
-        ursa = require('ursa'),
-
-    Crypt = function (key)
-    {
-        "use strict";
-        this.key = Crypt.parse_key(key);
-    };
+        ursa = require('ursa');
 
     Crypt.parse_key = function (key)
     {
         "use strict";
 
-        if (typeof key === 'string')
+        if ((typeof key === 'string') && (key.indexOf('-----BEGIN') === 0))
         {
-            if (key.indexOf('PUBLIC KEY') >= 0)
+            if (key.indexOf('PUBLIC KEY') > 0)
             {
                 key = ursa.createPublicKey(key, 'utf8');
             }
-            else if (key.indexOf('PRIVATE KEY') >= 0)
+            else if (key.indexOf('PRIVATE KEY') > 0)
             {
                 key = ursa.createPrivateKey(key, '', 'utf8');
             }
@@ -87,17 +101,22 @@ if (typeof require === 'function')
             return;
         }
 
-        f(null, { iv: iv64, data: edata, ekey: ekey });
+        f(null, { iv: iv64, data: edata, ekey: ekey, version: version });
     };
 
     Crypt.prototype.decrypt = function (data, f)
     {
         "use strict";
 
-        var err = null, key, decipher, ddata, jdata;
+        var key, decipher, ddata, jdata;
 
         try
         {
+            if (!Crypt.check_version(data, f))
+            {
+                return;
+            }
+
             if (this.key.decrypt)
             {
                 key = this.key.decrypt(data.ekey, 'base64', 'binary');
@@ -126,7 +145,8 @@ if (typeof require === 'function')
             }
             else
             {
-                err = "digest mismatch";
+                f('digest mismatch');
+                return;
             }
         }
         catch (ex)
@@ -135,14 +155,7 @@ if (typeof require === 'function')
             return;
         }
 
-        if (err)
-        {
-            f(err);
-        }
-        else
-        {
-            f(null, jdata);
-        }
+        f(null, jdata);
     };
 
     Crypt.prototype.sign = function (data, f)
@@ -172,17 +185,22 @@ if (typeof require === 'function')
             return;
         }
 
-        f(null, { data: jdata, signature: signature });
+        f(null, { data: jdata, signature: signature, version: version });
     };
 
     Crypt.prototype.verify = function (data, f)
     {
         "use strict";
 
-        var err = null, match, jdata;
+        var match, jdata;
 
         try
         {
+            if (!Crypt.check_version(data, f))
+            {
+                return;
+            }
+
             if (this.key.hashAndVerify)
             {
                 match = this.key.hashAndVerify(
@@ -205,7 +223,8 @@ if (typeof require === 'function')
             }
             else
             {
-                err = 'digest mismatch';
+                f('digest mismatch');
+                return;
             }
         }
         catch (ex)
@@ -214,14 +233,7 @@ if (typeof require === 'function')
             return;
         }
 
-        if (err)
-        {
-            f(err);
-        }
-        else
-        {
-            f(null, jdata);
-        }
+        f(null, jdata);
     };
 }
 else
@@ -252,28 +264,22 @@ else
         }
 
         return r;
-    },
-    
-    Crypt = function (key)
-    {
-        "use strict";
-        this.key = Crypt.parse_key(key);
     };
-
+    
     Crypt.parse_key = function (key)
     {
         "use strict";
 
         var r = key;
 
-        if (typeof key === 'string')
+        if ((typeof key === 'string') && (key.indexOf('-----BEGIN') === 0))
         {
             if (key.indexOf('PUBLIC KEY') > 0)
             {
                 r = new RSAKey();
                 r.readPublicKeyFromPEMString(key);
             }
-            else if (key.indexOf('PRIVATE KEY') >= 0)
+            else if (key.indexOf('PRIVATE KEY') > 0)
             {
                 r = new RSAKey();
                 r.readPrivateKeyFromPEMString(key);
@@ -331,17 +337,22 @@ else
             return;
         }
 
-        f(null, { iv: iv64, data: edata, ekey: ekey });
+        f(null, { iv: iv64, data: edata, ekey: ekey, version: version });
     };
 
     Crypt.prototype.decrypt = function (data, f)
     {
         "use strict";
 
-        var err = null, key_arr, iv, edata, ddata, digest;
+        var key_arr, iv, edata, ddata, digest;
 
         try
         {
+            if (!Crypt.check_version(data, f))
+            {
+                return;
+            }
+
             if (this.key.decryptOAEP)
             {
                 key_arr = get_char_codes(this.key.decryptOAEP(b64tohex(data.ekey)));
@@ -372,7 +383,8 @@ else
             }
             else
             {
-                err = 'digest mismatch';
+                f('digest mismatch');
+                return;
             }
         }
         catch (ex)
@@ -381,14 +393,7 @@ else
             return;
         }
 
-        if (err)
-        {
-            f(err);
-        }
-        else
-        {
-            f(null, ddata);
-        }
+        f(null, ddata);
     };
 
     Crypt.prototype.sign = function (data, f)
@@ -408,17 +413,22 @@ else
                             String, this.key || []), jdata));
         }
 
-        f(null, { data: jdata, signature: signature });
+        f(null, { data: jdata, signature: signature, version: version });
     };
 
     Crypt.prototype.verify = function (data, f)
     {
         "use strict";
 
-        var err = null, match, jdata;
+        var match, jdata;
 
         try
         {
+            if (!Crypt.check_version(data, f))
+            {
+                return;
+            }
+
             if (this.key.verifyPSS)
             {
                 match = this.key.verifyPSS(data.data, b64tohex(data.signature), 'sha256');
@@ -436,7 +446,8 @@ else
             }
             else
             {
-                err = 'digest mismatch';
+                f('digest mismatch');
+                return;
             }
         }
         catch (ex)
@@ -445,14 +456,7 @@ else
             return;
         }
 
-        if (err)
-        {
-            f(err);
-        }
-        else
-        {
-            f(null, jdata);
-        }
+        f(null, jdata);
     };
 }
 
