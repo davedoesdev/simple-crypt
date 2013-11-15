@@ -300,7 +300,7 @@ slow|3,130|3,129,778|801
 
   - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1.
 
-  - Pass `undefined` if you intend to use one of the [dynamic key retrieval](#dynamic_key_retrieval) methods.
+  - Pass `undefined` if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
 
 - `{Object} options` Optional settings:
@@ -318,7 +318,7 @@ slow|3,130|3,129,778|801
 
 ## Crypt.get_key_size()
 
-> Get the size (in bytes) of symmetric encryption keys. Use this value when creating keys for use with [Crypt.prototype.encrypt](#cryptencrypt) and [Crypt.prototype.decrypt](#cryptdecrypt).
+> Get the size (in bytes) of symmetric encryption keys. Use this value when creating keys for use with [Crypt.prototype.encrypt](#cryptprototypeencryptdata-iv-cb) and [Crypt.prototype.decrypt](#cryptprototypedecryptdata-cb).
 
 **Return:**
 
@@ -402,7 +402,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [encrypt](#cryptprototypeencrypt). You may have received this from another party, for instance.
+- `{Object} data` A result object returned by [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
 
 
   - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
@@ -453,7 +453,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [sign](#cryptprototypesign). You may have received this from another party, for instance.
+- `{Object} data` A result object returned by [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
 
 
   - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
@@ -470,7 +470,7 @@ slow|3,130|3,129,778|801
 
 ## Crypt.sign_encrypt_sign(signing_key, encryption_key, data, [iv], cb)
 
-> Sign then encrypt then sign data. Convenience function which creates two `Crypt` objects, calls [sign](#cryptsign) on the first, plumbs the result into [encrypt](#cryptencrypt) on the second and then plumbs the result from that into [sign](#cryptsign) on the first again. See [this article](http://world.std.com/~dtd/sign_encrypt/sign_encrypt7.html) for a discussion of why just sign then encrypt isn't good enougn.
+> Sign then encrypt then sign data. Convenience function which creates two `Crypt` objects, calls [sign](#cryptprototypesigndata-cb) on the first, plumbs the result into [encrypt](#cryptprototypeencryptdata-iv-cb) on the second and then plumbs the result from that into [sign](#cryptprototypesigndata-cb) on the first again. See [this article](http://world.std.com/~dtd/sign_encrypt/sign_encrypt7.html) for a discussion of why just sign then encrypt isn't good enougn.
 
 **Parameters:**
 
@@ -494,13 +494,13 @@ slow|3,130|3,129,778|801
 
 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [encrypt](#cryptencrypt).
+  - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprotoypesigndata-cb).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
 ## Crypt.verify_decrypt_verify(decryption_key, verifying_key, data, cb)
 
-> Verify then decrypt then verify data. Convenience function which creates two `Crypt` objects, calls [verify](#cryptverify) on the first, plumbs the result into [decrypt](#cryptdecrypt) on the second and them plumbs the result from that into [verify](#cryptverify) on the first again.
+> Verify then decrypt then verify data. Convenience function which creates two `Crypt` objects, calls [verify](#cryptprototypeverifydata-cb) on the first, plumbs the result into [decrypt](#cryptprototypedecryptdata-cb) on the second and then plumbs the result from that into [verify](#cryptprototypeverifydata-cb) on the first again.
 
 **Parameters:**
 
@@ -512,7 +512,7 @@ slow|3,130|3,129,778|801
 
 
 
-- `{Object} data` A result object returned by [sign_encrypt_sign](#cryptsign_encrypt_sign).
+- `{Object} data` A result object returned by [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb).
 
 
 
@@ -527,7 +527,7 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.maybe_encrypt(encrypt, data, cb, [get_key])
 
-> Conditionally encrypt data using [encrypt](#cryptencrypt).
+> Conditionally encrypt data using [encrypt](#cryptprototypeencryptdata-iv-cb).
 
 **Parameters:**
 
@@ -572,11 +572,11 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.maybe_decrypt(data, cb, [get_key])
 
-> Conditionally decrypt data using [decrypt](#cryptdecrypt).
+> Conditionally decrypt data using [decrypt](#cryptprototypedecryptdata-cb).
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [maybe_encrypt](#cryptmaybe_encrypt).
+- `{Object} data` A result object returned by [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key).
 
 
 
@@ -599,13 +599,13 @@ slow|3,130|3,129,778|801
 
     - `{Object|Buffer|String} key` The decryption key.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptmaybe_encrypt) (if any).
+  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get-key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
 ## Crypt.prototype.maybe_sign(sign, data, cb, [get_key])
 
-> Conditionally sign data using [sign](#cryptsign).
+> Conditionally sign data using [sign](#cryptprototypesigndata-cb).
 
 **Parameters:**
 
@@ -648,11 +648,11 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.maybe_verify(data, cb, [get_key])
 
-> Conditionally verify data using [verify](#cryptverify).
+> Conditionally verify data using [verify](#cryptprototypeverifydata-cb).
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [maybe_sign](#cryptmaybe_sign).
+- `{Object} data` A result object returned by [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key).
 
 
 
@@ -675,7 +675,7 @@ slow|3,130|3,129,778|801
 
     - `{Object|Buffer|String} key` The verifying key.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptmaybe_sign) (if any).
+  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprotoyepmaybe_signsign-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
