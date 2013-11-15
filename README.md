@@ -34,8 +34,17 @@ Please feel free to make any comments (or pull requests), especially if you noti
 
 ## Installation
 
+Node.js:
+
 ``` shell
 npm install simple-crypt
+```
+
+Browser:
+
+```html
+<script type="text/javascript" src="dist/simple-crypt-deps.js"></script>
+<script type="text/javascript" src="dist/simple-crypt.js"></script>
 ```
 
 ## More Examples
@@ -155,7 +164,7 @@ new Crypt().maybe_encrypt(data, function (err, encrypted)
 }, data.device_id);
 ```
 
-### Sign-then-encrypt
+### Sign-encrypt-sign
 
 ```javascript
 Crypt.sign_encrypt_sign(priv_pem, pub_pem, data, function (err, data_out)
@@ -249,20 +258,34 @@ slow|3,130|3,129,778|801
 
 <a name="tableofcontents"></a>
 
+
+## Constructor
 - <a name="toc_cryptkey-options"></a>[Crypt](#cryptkey-options)
+
+## Key functions
 - <a name="toc_cryptget_key_size"></a>[Crypt.get_key_size](#cryptget_key_size)
 - <a name="toc_cryptparse_keykey"></a>[Crypt.parse_key](#cryptparse_keykey)
 - <a name="toc_cryptprototypeget_key"></a><a name="toc_cryptprototype"></a>[Crypt.prototype.get_key](#cryptprototypeget_key)
+
+## Encryption
 - <a name="toc_cryptprototypeencryptdata-iv-cb"></a>[Crypt.prototype.encrypt](#cryptprototypeencryptdata-iv-cb)
 - <a name="toc_cryptprototypedecryptdata-cb"></a>[Crypt.prototype.decrypt](#cryptprototypedecryptdata-cb)
+
+## Signing
 - <a name="toc_cryptprototypesigndata-cb"></a>[Crypt.prototype.sign](#cryptprototypesigndata-cb)
 - <a name="toc_cryptprototypeverifydata-cb"></a>[Crypt.prototype.verify](#cryptprototypeverifydata-cb)
+
+## Sign-encrypt-sign
 - <a name="toc_cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb"></a>[Crypt.sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb)
 - <a name="toc_cryptverify_decrypt_verifydecryption_key-verifying_key-data-cb"></a>[Crypt.verify_decrypt_verify](#cryptverify_decrypt_verifydecryption_key-verifying_key-data-cb)
+
+## Conditional operation
 - <a name="toc_cryptprototypemaybe_encryptencrypt-data-cb-get_key"></a>[Crypt.prototype.maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key)
 - <a name="toc_cryptprototypemaybe_decryptdata-cb-get_key"></a>[Crypt.prototype.maybe_decrypt](#cryptprototypemaybe_decryptdata-cb-get_key)
 - <a name="toc_cryptprototypemaybe_signsign-data-cb-get_key"></a>[Crypt.prototype.maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key)
 - <a name="toc_cryptprototypemaybe_verifydata-cb-get_key"></a>[Crypt.prototype.maybe_verify](#cryptprototypemaybe_verifydata-cb-get_key)
+
+-----
 
 ## Crypt(key, options)
 
