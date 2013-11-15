@@ -70,7 +70,7 @@ module.exports = function (grunt)
             inputTitle: false,
             extraHeadingLevels: 1,
             sections: {
-                'Crypt.prototype.maybe_encrypt': '\n## Conditional operation',
+                'Crypt.prototype.maybe_encrypt': '\n## Conditional and dynamic key operations',
                 'Crypt.sign_encrypt_sign': '\n## Sign-encrypt-sign',
                 'Crypt.prototype.sign': '\n## Signing',
                 'Crypt.prototype.encrypt': '\n## Encryption',

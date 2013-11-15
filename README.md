@@ -279,7 +279,7 @@ slow|3,130|3,129,778|801
 - <a name="toc_cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb"></a>[Crypt.sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb)
 - <a name="toc_cryptverify_decrypt_verifydecryption_key-verifying_key-data-cb"></a>[Crypt.verify_decrypt_verify](#cryptverify_decrypt_verifydecryption_key-verifying_key-data-cb)
 
-## Conditional operation
+## Conditional and dynamic key operations
 - <a name="toc_cryptprototypemaybe_encryptencrypt-data-cb-get_key"></a>[Crypt.prototype.maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key)
 - <a name="toc_cryptprototypemaybe_decryptdata-cb-get_key"></a>[Crypt.prototype.maybe_decrypt](#cryptprototypemaybe_decryptdata-cb-get_key)
 - <a name="toc_cryptprototypemaybe_signsign-data-cb-get_key"></a>[Crypt.prototype.maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key)
