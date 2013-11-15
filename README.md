@@ -470,7 +470,7 @@ slow|3,130|3,129,778|801
 
 ## Crypt.sign_encrypt_sign(signing_key, encryption_key, data, [iv], cb)
 
-> Sign then encrypt then sign data. Convenience function which creates two `Crypt` objects, calls [sign](#cryptprototypesigndata-cb) on the first, plumbs the result into [encrypt](#cryptprototypeencryptdata-iv-cb) on the second and then plumbs the result from that into [sign](#cryptprototypesigndata-cb) on the first again. See [this article](http://world.std.com/~dtd/sign_encrypt/sign_encrypt7.html) for a discussion of why just sign then encrypt isn't good enougn.
+> Sign then encrypt then sign data. Convenience function which creates two `Crypt` objects, calls [sign](#cryptprototypesigndata-cb) on the first, plumbs the result into [encrypt](#cryptprototypeencryptdata-iv-cb) on the second and then plumbs the result from that into [sign](#cryptprototypesigndata-cb) on the first again. See [this article](http://world.std.com/~dtd/sign_encrypt/sign_encrypt7.html) for a discussion of why just sign then encrypt isn't good enough.
 
 **Parameters:**
 
@@ -494,7 +494,7 @@ slow|3,130|3,129,778|801
 
 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprotoypesigndata-cb).
+  - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprototypesigndata-cb).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -599,7 +599,7 @@ slow|3,130|3,129,778|801
 
     - `{Object|Buffer|String} key` The decryption key.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get-key) (if any).
+  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -675,7 +675,7 @@ slow|3,130|3,129,778|801
 
     - `{Object|Buffer|String} key` The verifying key.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprotoyepmaybe_signsign-data-cb-get_key) (if any).
+  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypepmaybe_signsign-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
