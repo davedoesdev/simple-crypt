@@ -675,7 +675,7 @@ slow|3,130|3,129,778|801
 
     - `{Object|Buffer|String} key` The verifying key.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypepmaybe_signsign-data-cb-get_key) (if any).
+  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
