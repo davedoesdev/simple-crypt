@@ -991,7 +991,7 @@ describe('browser', function ()
     {
         browser = wd.remote();
 
-        browser.init(function (err)
+        browser.init({ browserName: 'phantomjs' }, function (err)
         {
             if (err)
             {
