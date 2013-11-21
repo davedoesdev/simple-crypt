@@ -411,7 +411,7 @@ slow|3,130|3,129,778|801
 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmake-key-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is returned. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is returned:
+  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is returned. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is returned:
 
     - `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
 
