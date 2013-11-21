@@ -1,11 +1,12 @@
 /*global SlowCrypt: false,
          sc_sym_slow: false,
          sc_asym_priv_slow: false,
-         sc_asym_pub_slow: false */
+         sc_asym_pub_slow: false,
+         before: false */
 /*jslint node: true */
 "use strict";
 
-require('./common');
+before(require('./common'));
 
 module.exports = {
     encrypt_decrypt_symmetric: function (data, done)
@@ -67,12 +68,12 @@ module.exports = {
 
     load_rsa_privkey: function (pem, done)
     {
-        done(null, new SlowCrypt(pem));
+        SlowCrypt.make(pem, done);
     },
 
     derive_key_from_password: function (info, done)
     {
-        done(null, new SlowCrypt(info));
+        SlowCrypt.make(info, done);
     }
 };
 

@@ -34,13 +34,21 @@ describe('sign_verify_symmetric', function ()
     {
         run_tasks(function (task, cb)
         {
-            new Crypt(task.key, vector_helpers.vecopts).sign(task.msg,
-            function (err, v)
+            Crypt.make(task.key, vector_helpers.vecopts, function (err, sign)
             {
-                expr(expect(err, 'error').not.to.exist);
-                expect(v.signature, 'expected mac').to.equal(task.mac.toString('base64'));
+                if (err)
+                {
+                    cb(err);
+                    return;
+                }
+                
+                sign.sign(task.msg, function (err, v)
+                {
+                    expr(expect(err, 'error').not.to.exist);
+                    expect(v.signature, 'expected mac').to.equal(task.mac.toString('base64'));
 
-                cb();
+                    cb();
+                });
             });
         }, callback);
     });
@@ -49,18 +57,27 @@ describe('sign_verify_symmetric', function ()
     {
         run_tasks(function (task, cb)
         {
-            new Crypt(task.key, vector_helpers.vecopts).verify(
+            Crypt.make(task.key, vector_helpers.vecopts, function (err, verify)
             {
-                data: task.msg.toString('base64'),
-                signature: task.mac.toString('base64'),
-                version: Crypt.get_version()
-            },
-            function (err, v)
-            {
-                expr(expect(err, 'error').not.to.exist);
-                expect(v.toString('base64'), 'expected msg').to.equal(task.msg.toString('base64'));
+                if (err)
+                {
+                    cb(err);
+                    return;
+                }
+                
+                verify.verify(
+                {
+                    data: task.msg.toString('base64'),
+                    signature: task.mac.toString('base64'),
+                    version: Crypt.get_version()
+                },
+                function (err, v)
+                {
+                    expr(expect(err, 'error').not.to.exist);
+                    expect(v.toString('base64'), 'expected msg').to.equal(task.msg.toString('base64'));
 
-                cb();
+                    cb();
+                });
             });
         }, callback);
     });

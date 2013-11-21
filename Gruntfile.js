@@ -29,9 +29,7 @@ module.exports = function (grunt)
                 src: ['slowaes/aes.js',
                       'crypto-js/build/components/core.js',
                       'crypto-js/build/components/sha256.js',
-                      'crypto-js/build/components/sha1.js',
-                      'crypto-js/build/components/hmac.js',
-                      'crypto-js/build/components/pbkdf2.js',
+                      'pbkdf2.js',
                       'jsrsasign/ext/jsbn.js',
                       'jsrsasign/ext/jsbn2.js',
                       'jsrsasign/ext/base64.js',
@@ -77,7 +75,7 @@ module.exports = function (grunt)
                 'Crypt.sign_encrypt_sign': '\n## Sign-encrypt-sign',
                 'Crypt.prototype.sign': '\n## Signing',
                 'Crypt.prototype.encrypt': '\n## Encryption',
-                'Crypt': '\n## Constructor',
+                'Crypt.make': '\n## Create',
                 'Crypt.get_key_size': '\n## Key functions',
                 '': '-----'
             }
@@ -123,7 +121,7 @@ module.exports = function (grunt)
             },
 
             install: {
-                cmd: 'git submodule init && git submodule update && svn checkout http://slowaes.googlecode.com/svn/trunk/js/ slowaes && svn checkout http://crypto-js.googlecode.com/svn/tags/3.1.2/ crypto-js && hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem && ./patches/patch.sh'
+                cmd: 'git submodule init && git submodule update && svn checkout http://slowaes.googlecode.com/svn/trunk/js/ slowaes && wget -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && svn checkout http://crypto-js.googlecode.com/svn/tags/3.1.2/ crypto-js && hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem && ./patches/patch.sh'
             }
         }
     });

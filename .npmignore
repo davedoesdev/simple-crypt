@@ -2,3 +2,4 @@ crypto-js
 slowaes
 js-rsa-pem
 jsrsasign
+pbkdf2.js

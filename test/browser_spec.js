@@ -27,33 +27,36 @@ describe('browser', function ()
         var test = arguments[arguments.length - 2],
             cb = arguments[arguments.length - 1],
 
-        f2 = function (f)
+        f2 = function (f /*, args..., done*/)
         {
-            var r = {};
+            var r = {},
+                done = arguments[arguments.length - 1];
 
             try
             {
-                f.apply(this, Array.prototype.slice.call(arguments, 1).concat([
+                f.apply(this, Array.prototype.slice.call(arguments, 1, arguments.length - 1).concat([
                 function (err)
                 {
                     if (err)
                     {
                         r.err = err.stack || err.toString();
-                        return;
+                    }
+                    else
+                    {
+                        r.vals = Array.prototype.slice.call(arguments, 1);
                     }
 
-                    r.vals = Array.prototype.slice.call(arguments, 1);
+                    done(r);
                 }]));
             }
             catch (ex)
             {
                 r.err = ex.stack;
+                done(r);
             }
-
-            return r;
         };
 
-        browser.execute('return ' + f2 + '.apply(this, [' + f + '].concat(Array.prototype.slice.call(arguments)))',
+        browser.executeAsync('return ' + f2 + '.apply(this, [' + f + '].concat(Array.prototype.slice.call(arguments)))',
                         Array.prototype.slice.call(arguments, 1, arguments.length - 2),
         function (err, r)
         {
@@ -117,7 +120,7 @@ describe('browser', function ()
         return key.toString('base64');
     },
 
-    setup_encrypt_decrypt = function (encrypt_key, decrypt_key, expect_error, decrypt_error)
+    setup_encrypt_decrypt = function (encrypt_key, decrypt_key, expect_error, decrypt_error, copy_salt)
     {
         decrypt_key = decrypt_key || encrypt_key;
 
@@ -125,31 +128,20 @@ describe('browser', function ()
         
         it('should encrypt and decrypt JSON test vector, asym=' + asym, function (cb)
         {
-            in_browser(function (encrypt_key, decrypt_key, json_vector, cb)
+            in_browser(function (encrypt_key, decrypt_key, copy_salt, json_vector, cb)
             {
                 encrypt_key = typeof encrypt_key === 'string' ? window.atob(encrypt_key) : encrypt_key;
                 decrypt_key = typeof decrypt_key === 'string' ? window.atob(decrypt_key) : decrypt_key;
 
-                new Crypt(encrypt_key).encrypt(json_vector, function (err, ev)
+                Crypt.make(encrypt_key, function (err, crypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    var ths;
-
-                    if (decrypt_key === this.key)
-                    {
-                        ths = this;
-                    }
-                    else
-                    {
-                        ths = new Crypt(decrypt_key);
-                    }
                     
-                    ths.decrypt(ev, function (err, dv)
+                    crypt.encrypt(json_vector, function (err, ev)
                     {
                         if (err)
                         {
@@ -157,7 +149,13 @@ describe('browser', function ()
                             return;
                         }
 
-                        new Crypt(decrypt_key).decrypt(ev, function (err, dv2)
+                        if (copy_salt && !decrypt_key.salt)
+                        {
+                            decrypt_key = Object.create(decrypt_key);
+                            decrypt_key.salt = this.get_key().salt;
+                        }
+
+                        var decrypt = function (err, ths)
                         {
                             if (err)
                             {
@@ -165,13 +163,50 @@ describe('browser', function ()
                                 return;
                             }
 
-                            cb(null, dv, dv2);
-                        });
+                            ths.decrypt(ev, function (err, dv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                Crypt.make(decrypt_key, function (err, decrypt)
+                                {
+                                    if (err)
+                                    {
+                                        cb(err);
+                                        return;
+                                    }
+                                    
+                                    decrypt.decrypt(ev, function (err, dv2)
+                                    {
+                                        if (err)
+                                        {
+                                            cb(err);
+                                            return;
+                                        }
+
+                                        cb(null, dv, dv2);
+                                    });
+                                });
+                            });
+                        };
+
+                        if (decrypt_key === this.key)
+                        {
+                            decrypt(null, this);
+                        }
+                        else
+                        {
+                            Crypt.make(decrypt_key, decrypt);
+                        }
                     });
                 });
             },
             encode_key(encrypt_key),
             encode_key(decrypt_key),
+            copy_salt,
             json_vector,
             function (dv, dv2, cb)
             {
@@ -184,22 +219,20 @@ describe('browser', function ()
 
         it('should maybe encrypt and decrypt JSON test vector, asym=' + asym, function (cb)
         {
-            in_browser(function (encrypt_key, decrypt_key, json_vector, cb)
+            in_browser(function (encrypt_key, decrypt_key, copy_salt, json_vector, cb)
             {
                 encrypt_key = typeof encrypt_key === 'string' ? window.atob(encrypt_key) : encrypt_key;
                 decrypt_key = typeof decrypt_key === 'string' ? window.atob(decrypt_key) : decrypt_key;
 
-                new Crypt(encrypt_key).maybe_encrypt(json_vector,
-                function (err, ev)
+                Crypt.make(encrypt_key, function (err, crypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt(decrypt_key).maybe_decrypt(ev,
-                    function (err, dv)
+                
+                    crypt.maybe_encrypt(json_vector, function (err, ev)
                     {
                         if (err)
                         {
@@ -207,12 +240,37 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, ev, dv);
+                        if (copy_salt && !decrypt_key.salt)
+                        {
+                            decrypt_key = Object.create(decrypt_key);
+                            decrypt_key.salt = this.get_key().salt;
+                        }
+
+                        Crypt.make(decrypt_key, function (err, decrypt)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            decrypt.maybe_decrypt(ev, function (err, dv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, ev, dv);
+                            });
+                        });
                     });
                 });
             },
             encode_key(encrypt_key),
             encode_key(decrypt_key),
+            copy_salt,
             json_vector,
             function (ev, dv, cb)
             {
@@ -227,15 +285,15 @@ describe('browser', function ()
         {
             in_browser(function (json_vector, cb)
             {
-                new Crypt().maybe_encrypt(false, json_vector, function (err, ev)
+                Crypt.make(function (err, encrypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt().maybe_decrypt(ev, function (err, dv)
+                    
+                    encrypt.maybe_encrypt(false, json_vector, function (err, ev)
                     {
                         if (err)
                         {
@@ -243,7 +301,25 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, ev, dv);
+                        Crypt.make(function (err, decrypt)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            decrypt.maybe_decrypt(ev, function (err, dv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, ev, dv);
+                            });
+                        });
                     });
                 });
             },
@@ -259,20 +335,20 @@ describe('browser', function ()
 
         it('should support key function, asym=' + asym, function (cb)
         {
-            in_browser(function (encrypt_key, decrypt_key, json_vector, cb)
+            in_browser(function (encrypt_key, decrypt_key, copy_salt, json_vector, cb)
             {
                 encrypt_key = typeof encrypt_key === 'string' ? window.atob(encrypt_key) : encrypt_key;
                 decrypt_key = typeof decrypt_key === 'string' ? window.atob(decrypt_key) : decrypt_key;
 
-                new Crypt().maybe_encrypt(json_vector, function (err, ev)
+                Crypt.make(function (err, encrypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt().maybe_decrypt(ev, function (err, dv)
+                    
+                    encrypt.maybe_encrypt(json_vector, function (err, ev)
                     {
                         if (err)
                         {
@@ -280,18 +356,43 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, ev, dv);
+                        if (copy_salt && !decrypt_key.salt)
+                        {
+                            decrypt_key = Object.create(decrypt_key);
+                            decrypt_key.salt = this.get_key().salt;
+                        }
+
+                        Crypt.make(function (err, decrypt)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            decrypt.maybe_decrypt(ev, function (err, dv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, ev, dv);
+                            }, function (cb)
+                            {
+                                cb(null, decrypt_key);
+                            });
+                        });
                     }, function (cb)
                     {
-                        cb(null, decrypt_key);
+                        cb(null, encrypt_key);
                     });
-                }, function (cb)
-                {
-                    cb(null, encrypt_key);
                 });
             },
             encode_key(encrypt_key),
             encode_key(decrypt_key),
+            copy_salt,
             json_vector,
             function (ev, dv, cb)
             {
@@ -304,90 +405,72 @@ describe('browser', function ()
 
         it('should encrypt in Node and decrypt in browser, asym=' + asym, function (cb)
         {
-            new Crypt(encrypt_key).encrypt(json_vector,
-            function (err, ev)
+            Crypt.make(encrypt_key, function (err, crypt)
             {
-                if (expect_error && !decrypt_error)
+                if (err)
                 {
-                    expr(expect(err, 'expected error').to.exist);
-                    cb();
+                    cb(err);
                     return;
                 }
-
-                expr(expect(err, 'error').not.to.exist);
-
-                in_browser(function (ev, decrypt_key, cb)
+                
+                crypt.encrypt(json_vector, function (err, ev)
                 {
-                    decrypt_key = typeof decrypt_key === 'string' ? window.atob(decrypt_key) : decrypt_key;
-                    new Crypt(decrypt_key).decrypt(ev, cb);
-                },
-                ev,
-                encode_key(decrypt_key),
-                function (dv, cb)
-                {
-                    expect(dv, 'decrypted json test vector').to.eql(json_vector);
-                    cb();
-                },
-                make_cb(cb, decrypt_error));
+                    if (expect_error && !decrypt_error)
+                    {
+                        expr(expect(err, 'expected error').to.exist);
+                        cb();
+                        return;
+                    }
+
+                    expr(expect(err, 'error').not.to.exist);
+
+                    in_browser(function (ev, decrypt_key, salt, cb)
+                    {
+                        decrypt_key = typeof decrypt_key === 'string' ? window.atob(decrypt_key) : decrypt_key;
+
+                        if (salt)
+                        {
+                            decrypt_key.salt = window.atob(salt);
+                        }
+
+                        Crypt.make(decrypt_key, function (err, decrypt)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            decrypt.decrypt(ev, cb);
+                        });
+                    },
+                    ev,
+                    encode_key(decrypt_key),
+                    copy_salt ? this.get_key().salt.toString('base64') : undefined,
+                    function (dv, cb)
+                    {
+                        expect(dv, 'decrypted json test vector').to.eql(json_vector);
+                        cb();
+                    },
+                    make_cb(cb, decrypt_error));
+                });
             });
         });
 
         it('should encrypt in browser and decrypt in Node, asym=' + asym, function (cb)
         {
-            in_browser(function (encrypt_key, json_vector, cb)
+            in_browser(function (encrypt_key, copy_salt, json_vector, cb)
             {
                 encrypt_key = typeof encrypt_key === 'string' ? window.atob(encrypt_key) : encrypt_key;
-                new Crypt(encrypt_key).encrypt(json_vector, cb);
-            },
-            encode_key(encrypt_key),
-            json_vector,
-            function (ev, cb)
-            {
-                new Crypt(decrypt_key).decrypt(ev,
-                function (err, dv)
-                {
-                    expr(expect(err, 'error').not.to.exist);
-                    expect(dv, 'decrypted json test vector').to.eql(json_vector);
-                    cb();
-                });
-            },
-            make_cb(cb, expect_error));
-        });
-    },
-    
-    setup_sign_verify = function (signing_key, verifying_key, expect_error, verify_error)
-    {
-        verifying_key = verifying_key || signing_key;
-
-        var asym = typeof verifying_key === 'string';
-
-        it('should sign and verify JSON test_vector, asym=' + asym, function (cb)
-        {
-            in_browser(function (signing_key, verifying_key, json_vector, cb)
-            {
-                signing_key = typeof signing_key === 'string' ? window.atob(signing_key) : signing_key;
-                verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
-
-                new Crypt(signing_key).sign(json_vector, function (err, sv)
+                Crypt.make(encrypt_key, function (err, encrypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    var ths;
-
-                    if (verifying_key === this.key)
-                    {
-                        ths = this;
-                    }
-                    else
-                    {
-                        ths = new Crypt(verifying_key);
-                    }
-
-                    ths.verify(sv, function (err, vv)
+                    
+                    encrypt.encrypt(json_vector, function (err, ev)
                     {
                         if (err)
                         {
@@ -395,7 +478,84 @@ describe('browser', function ()
                             return;
                         }
 
-                        new Crypt(verifying_key).verify(sv, function (err, vv2)
+                        cb(null, copy_salt ? window.btoa(this.get_key().salt) : undefined, ev);
+                    });
+                });
+            },
+            encode_key(encrypt_key),
+            copy_salt,
+            json_vector,
+            function (salt, ev, cb)
+            {
+                if (salt)
+                {
+                    decrypt_key = Object.create(decrypt_key);
+                    decrypt_key.salt = new Buffer(salt, 'base64');
+                }
+
+                Crypt.make(decrypt_key, function (err, decrypt)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    decrypt.decrypt(ev, function (err, dv)
+                    {
+                        try
+                        {
+                            expr(expect(err, 'error').not.to.exist);
+                            expect(dv, 'decrypted json test vector').to.eql(json_vector);
+                            cb();
+                        }
+                        catch (ex)
+                        {
+                            cb(ex);
+                        }
+                    });
+                });
+            },
+            make_cb(cb, expect_error));
+        });
+    },
+    
+    setup_sign_verify = function (signing_key, verifying_key, expect_error, verify_error, copy_salt)
+    {
+        verifying_key = verifying_key || signing_key;
+
+        var asym = typeof verifying_key === 'string';
+
+        it('should sign and verify JSON test_vector, asym=' + asym, function (cb)
+        {
+            in_browser(function (signing_key, verifying_key, copy_salt, json_vector, cb)
+            {
+                signing_key = typeof signing_key === 'string' ? window.atob(signing_key) : signing_key;
+                verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
+
+                Crypt.make(signing_key, function (err, sign)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    sign.sign(json_vector, function (err, sv)
+                    {
+                        if (err)
+                        {
+                            cb(err);
+                            return;
+                        }
+
+                        if (copy_salt && !verifying_key.salt)
+                        {
+                            verifying_key = Object.create(verifying_key);
+                            verifying_key.salt = this.get_key().salt;
+                        }
+
+                        var verify = function (err, ths)
                         {
                             if (err)
                             {
@@ -403,13 +563,50 @@ describe('browser', function ()
                                 return;
                             }
 
-                            cb(null, vv, vv2);
-                        });
+                            ths.verify(sv, function (err, vv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                Crypt.make(verifying_key, function (err, verify)
+                                {
+                                    if (err)
+                                    {
+                                        cb(err);
+                                        return;
+                                    }
+                                    
+                                    verify.verify(sv, function (err, vv2)
+                                    {
+                                        if (err)
+                                        {
+                                            cb(err);
+                                            return;
+                                        }
+
+                                        cb(null, vv, vv2);
+                                    });
+                                });
+                            });
+                        };
+
+                        if (verifying_key === this.key)
+                        {
+                            verify(null, this);
+                        }
+                        else
+                        {
+                            Crypt.make(verifying_key, verify);
+                        }
                     });
                 });
             },
             encode_key(signing_key),
             encode_key(verifying_key),
+            copy_salt,
             json_vector,
             function (vv, vv2, cb)
             {
@@ -422,22 +619,20 @@ describe('browser', function ()
 
         it('should maybe sign and verify JSON test vector, asym=' + asym, function (cb)
         {
-            in_browser(function (signing_key, verifying_key, json_vector, cb)
+            in_browser(function (signing_key, verifying_key, copy_salt, json_vector, cb)
             {
                 signing_key = typeof signing_key === 'string' ? window.atob(signing_key) : signing_key;
                 verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
 
-                new Crypt(signing_key).maybe_sign(json_vector,
-                function (err, sv)
+                Crypt.make(signing_key, function (err, sign)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt(verifying_key).maybe_verify(sv,
-                    function (err, vv)
+                    
+                    sign.maybe_sign(json_vector, function (err, sv)
                     {
                         if (err)
                         {
@@ -445,12 +640,37 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, sv, vv);
+                        if (copy_salt && !verifying_key.salt)
+                        {
+                            verifying_key = Object.create(verifying_key);
+                            verifying_key.salt = this.get_key().salt;
+                        }
+
+                        Crypt.make(verifying_key, function (err, verify)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            verify.maybe_verify(sv, function (err, vv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, sv, vv);
+                            });
+                        });
                     });
                 });
             },
             encode_key(signing_key),
             encode_key(verifying_key),
+            copy_salt,
             json_vector,
             function (sv, vv, cb)
             {
@@ -465,15 +685,15 @@ describe('browser', function ()
         {
             in_browser(function (json_vector, cb)
             {
-                new Crypt().maybe_sign(false, json_vector, function (err, sv)
+                Crypt.make(function (err, sign)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt().maybe_verify(sv, function (err, vv)
+                    
+                    sign.maybe_sign(false, json_vector, function (err, sv)
                     {
                         if (err)
                         {
@@ -481,7 +701,25 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, sv, vv);
+                        Crypt.make(function (err, verify)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            verify.maybe_verify(sv, function (err, vv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, sv, vv);
+                            });
+                        });
                     });
                 });
             },
@@ -497,20 +735,20 @@ describe('browser', function ()
 
         it('should support key function, asym=' + asym, function (cb)
         {
-            in_browser(function (signing_key, verifying_key, json_vector, cb)
+            in_browser(function (signing_key, verifying_key, copy_salt, json_vector, cb)
             {
                 signing_key = typeof signing_key === 'string' ? window.atob(signing_key) : signing_key;
                 verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
 
-                new Crypt().maybe_sign(json_vector, function (err, sv)
+                Crypt.make(function (err, sign)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
-
-                    new Crypt().maybe_verify(sv, function (err, vv)
+                    
+                    sign.maybe_sign(json_vector, function (err, sv)
                     {
                         if (err)
                         {
@@ -518,18 +756,43 @@ describe('browser', function ()
                             return;
                         }
 
-                        cb(null, sv, vv);
+                        if (copy_salt && !verifying_key.salt)
+                        {
+                            verifying_key = Object.create(verifying_key);
+                            verifying_key.salt = this.get_key().salt;
+                        }
+
+                        Crypt.make(function (err, verify)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            verify.maybe_verify(sv, function (err, vv)
+                            {
+                                if (err)
+                                {
+                                    cb(err);
+                                    return;
+                                }
+
+                                cb(null, sv, vv);
+                            }, function (cb)
+                            {
+                                cb(null, verifying_key);
+                            });
+                        });
                     }, function (cb)
                     {
-                        cb(null, verifying_key);
+                        cb(null, signing_key);
                     });
-                }, function (cb)
-                {
-                    cb(null, signing_key);
                 });
             },
             encode_key(signing_key),
             encode_key(verifying_key),
+            copy_salt,
             json_vector,
             function (sv, vv, cb)
             {
@@ -542,51 +805,115 @@ describe('browser', function ()
 
         it('should sign in Node and verify in browser, asym=' + asym, function (cb)
         {
-            new Crypt(signing_key).sign(json_vector,
-            function (err, sv)
+            Crypt.make(signing_key, function (err, sign)
             {
-                if (expect_error && !verify_error)
+                if (err)
                 {
-                    expr(expect(err, 'expected error').to.exist);
-                    cb();
+                    cb(err);
                     return;
                 }
-
-                expr(expect(err, 'error').not.to.exist);
-
-                in_browser(function (sv, verifying_key, cb)
+                
+                sign.sign(json_vector, function (err, sv)
                 {
-                    verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
-                    new Crypt(verifying_key).verify(sv, cb);
-                },
-                sv,
-                encode_key(verifying_key),
-                function (vv, cb)
-                {
-                    expect(vv, 'verified json test vector').to.eql(json_vector);
-                    cb();
-                },
-                make_cb(cb, verify_error));
+                    if (expect_error && !verify_error)
+                    {
+                        expr(expect(err, 'expected error').to.exist);
+                        cb();
+                        return;
+                    }
+
+                    expr(expect(err, 'error').not.to.exist);
+
+                    in_browser(function (sv, verifying_key, salt, cb)
+                    {
+                        verifying_key = typeof verifying_key === 'string' ? window.atob(verifying_key) : verifying_key;
+
+                        if (salt)
+                        {
+                            verifying_key.salt = window.atob(salt);
+                        }
+
+                        Crypt.make(verifying_key, function (err, verify)
+                        {
+                            if (err)
+                            {
+                                cb(err);
+                                return;
+                            }
+                            
+                            verify.verify(sv, cb);
+                        });
+                    },
+                    sv,
+                    encode_key(verifying_key),
+                    copy_salt ? this.get_key().salt.toString('base64') : undefined,
+                    function (vv, cb)
+                    {
+                        expect(vv, 'verified json test vector').to.eql(json_vector);
+                        cb();
+                    },
+                    make_cb(cb, verify_error));
+                });
             });
         });
 
         it('should sign in browser and verify in Node, asym=' + asym, function (cb)
         {
-            in_browser(function (signing_key, json_vector, cb)
+            in_browser(function (signing_key, copy_salt, json_vector, cb)
             {
                 signing_key = typeof signing_key === 'string' ? window.atob(signing_key) : signing_key;
-                new Crypt(signing_key).sign(json_vector, cb);
+                Crypt.make(signing_key, function (err, sign)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    sign.sign(json_vector, function (err, sv)
+                    {
+                        if (err)
+                        {
+                            cb(err);
+                            return;
+                        }
+
+                        cb(null, copy_salt ? window.btoa(this.get_key().salt) : undefined, sv);
+                    });
+                });
             },
             encode_key(signing_key),
+            copy_salt,
             json_vector,
-            function (sv, cb)
+            function (salt, sv, cb)
             {
-                new Crypt(verifying_key).verify(sv,
-                function (err, vv)
+                if (salt)
                 {
-                    expr(expect(err, 'error').not.to.exist);
-                    expect(vv, 'verified json test vector').to.eql(json_vector);
-                    cb();
+                    verifying_key = Object.create(verifying_key);
+                    verifying_key.salt = new Buffer(salt, 'base64');
+                }
+
+                Crypt.make(verifying_key, function (err, verify)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    verify.verify(sv, function (err, vv)
+                    {
+                        try
+                        {
+                            expr(expect(err, 'error').not.to.exist);
+                            expect(vv, 'verified json test vector').to.eql(json_vector);
+                            cb();
+                        }
+                        catch (ex)
+                        {
+                            cb(ex);
+                        }
+                    });
                 });
             },
             make_cb(cb, expect_error));
@@ -700,7 +1027,16 @@ describe('browser', function ()
                 iv = window.atob(iv);
                 plaintext = window.atob(plaintext);
 
-                new Crypt(key, opts).encrypt(plaintext, iv, cb);
+                Crypt.make(key, opts, function (err, crypt)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    crypt.encrypt(plaintext, iv, cb);
+                });
             }, 
             task.key.toString('base64'),
             task.iv.toString('base64'),
@@ -723,20 +1059,29 @@ describe('browser', function ()
             {
                 key = window.atob(key);
 
-                new Crypt(key, opts).decrypt(
-                {
-                    iv: iv,
-                    data: ciphertext,
-                    version: Crypt.get_version()
-                }, function (err, v)
+                Crypt.make(key, opts, function (err, decrypt)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
+                    
+                    decrypt.decrypt(
+                    {
+                        iv: iv,
+                        data: ciphertext,
+                        version: Crypt.get_version()
+                    }, function (err, v)
+                    {
+                        if (err)
+                        {
+                            cb(err);
+                            return;
+                        }
 
-                    cb(null, window.btoa(v));
+                        cb(null, window.btoa(v));
+                    });
                 });
             }, 
             task.key.toString('base64'),
@@ -780,6 +1125,16 @@ describe('browser', function ()
 
     setup_encrypt_decrypt(
     {
+        password: 'pass1',
+        iterations: 4000
+    },
+    {
+        password: 'pass1',
+        iterations: 4000
+    }, false, false, true);
+
+    setup_encrypt_decrypt(
+    {
         password: 'some random password',
         salt: 'some salt value',
         iterations: 4000
@@ -811,7 +1166,16 @@ describe('browser', function ()
                 key = window.atob(key);
                 msg = window.atob(msg);
 
-                new Crypt(key, opts).sign(msg, cb);
+                Crypt.make(key, opts, function (err, sign)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+                    
+                    sign.sign(msg, cb);
+                });
             },
             task.key.toString('base64'),
             task.msg.toString('base64'),
@@ -831,20 +1195,29 @@ describe('browser', function ()
         {
             in_browser(function (key, msg, mac, opts, cb)
             {
-                new Crypt(window.atob(key), opts).verify(
-                {
-                    data: msg,
-                    signature: mac,
-                    version: Crypt.get_version()
-                }, function (err, v)
+                Crypt.make(window.atob(key), opts, function (err, verify)
                 {
                     if (err)
                     {
                         cb(err);
                         return;
                     }
+                    
+                    verify.verify(
+                    {
+                        data: msg,
+                        signature: mac,
+                        version: Crypt.get_version()
+                    }, function (err, v)
+                    {
+                        if (err)
+                        {
+                            cb(err);
+                            return;
+                        }
 
-                    cb(null, window.btoa(v));
+                        cb(null, window.btoa(v));
+                    });
                 });
             },
             task.key.toString('base64'),
@@ -889,6 +1262,16 @@ describe('browser', function ()
         password: 'pass1',
         iterations: 4000
     }, true, true);
+
+    setup_sign_verify(
+    {
+        password: 'pass1',
+        iterations: 4000
+    },
+    {
+        password: 'pass1',
+        iterations: 4000
+    }, false, false, true);
 
     setup_sign_verify(
     {

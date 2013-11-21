@@ -112,16 +112,22 @@ if (process.env.SLOW)
     global.pub_key.slow_key = new RSAKey();
     global.pub_key.slow_key.readPublicKeyFromPEMString(pub_pem);
 
-    var parse_key = simple_crypt.SlowCrypt.prototype.parse_key;
+    var parse_key = simple_crypt.SlowCrypt.parse_key;
 
-    simple_crypt.SlowCrypt.prototype.parse_key = function (key)
+    simple_crypt.SlowCrypt.parse_key = function (key, cb)
     {
         if (key && key.slow_key)
         {
             key = key.slow_key;
         }
 
-        return parse_key(key);
+        if (key && Buffer.isBuffer(key.salt))
+        {
+            key = Object.create(key);
+            key.salt = String.fromCharCode.apply(String, key.salt);
+        }
+
+        parse_key(key, cb);
     };
 
     global.Crypt = simple_crypt.SlowCrypt;

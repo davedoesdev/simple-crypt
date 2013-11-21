@@ -9,10 +9,11 @@
          Uint8Array: false,
          escape: false,
          unescape: false,
-         CryptoJS: false,
+         PBKDF2: false,
          rstr_sha1: false,
          Buffer: false,
-         RSAKey: false */
+         RSAKey: false,
+         process: false */
 /*jslint nomen: true */
 
 // Simple symmetric and asymmetric crypto.
@@ -23,16 +24,63 @@ var SHA1_SIZE = 20,
     AES_BLOCK_SIZE = 16,
     AES_128_KEY_SIZE = 16,
 
-Crypt = function (key, options)
+Crypt = function (parsed_key, options)
 {
     "use strict";
-    this.key = this.parse_key(key);
+
+    this.key = parsed_key;
 
     options = options || {};
 
-    this.json = options.json !== false;
-    this.check = options.check !== false;
-    this.pad = options.pad !== false;
+    this.options = {};
+    this.options.json = options.json !== false;
+    this.options.check = options.check !== false;
+    this.options.pad = options.pad !== false;
+    this.options.custom = options.custom;
+};
+
+Crypt.make = function (key, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = {};
+    }
+
+    if (!cb)
+    {
+        cb = key;
+        key = undefined;
+    }
+
+    if (typeof cb !== 'function')
+    {
+        options = cb;
+        cb = undefined;
+    }
+
+    var This = this,
+        crypt = new This(undefined, options);
+
+    This.parse_key(key, function (err, parsed_key)
+    {
+        if (err)
+        {
+            cb(err);
+            return;
+        }
+
+        crypt.key = parsed_key;
+
+        if (cb)
+        {
+            cb(null, crypt);
+        }
+    });
+
+    return crypt;
 };
 
 Crypt.get_version = function ()
@@ -121,9 +169,19 @@ Crypt.prototype.maybe_encrypt = function (arg_encrypt,
                 }
                 else if (key)
                 {
-                    new Crypt(key).encrypt(data, iv, function (err, data)
+                    Crypt.make(key, ths.options, function (err, crypt)
                     {
-                        encrypted.call(this, err, data, key_data);
+                        if (err)
+                        {
+                            f.call(ths, err);
+                        }
+                        else
+                        {
+                            crypt.encrypt(data, iv, function (err, data)
+                            {
+                                encrypted.call(this, err, data, key_data);
+                            });
+                        }
                     });
                 }
                 else
@@ -164,7 +222,17 @@ Crypt.prototype.maybe_decrypt = function (data, f, get_key)
                 }
                 else
                 {
-                    new Crypt(key).decrypt(data.data, f);
+                    Crypt.make(key, ths.options, function (err, crypt)
+                    {
+                        if (err)
+                        {
+                            f.call(ths, err);
+                        }
+                        else
+                        {
+                            crypt.decrypt(data.data, f);
+                        }
+                    });
                 }
             });
 
@@ -235,9 +303,19 @@ Crypt.prototype.maybe_sign = function (arg_sign, arg_data, arg_f, arg_get_key)
                 }
                 else if (key)
                 {
-                    new Crypt(key).sign(data, function (err, data)
+                    Crypt.make(key, ths.options, function (err, crypt)
                     {
-                        signed.call(this, err, data, key_data);
+                        if (err)
+                        {
+                            f.call(ths, err);
+                        }
+                        else
+                        {
+                            crypt.sign(data, function (err, data)
+                            {
+                                signed.call(this, err, data, key_data);
+                            });
+                        }
                     });
                 }
                 else
@@ -278,7 +356,17 @@ Crypt.prototype.maybe_verify = function (data, f, get_key)
                 }
                 else
                 {
-                    new Crypt(key).verify(data.data, f);
+                    Crypt.make(key, ths.options, function (err, crypt)
+                    {
+                        if (err)
+                        {
+                            f.call(ths, err);
+                        }
+                        else
+                        {
+                            crypt.verify(data.data, f);
+                        }
+                    });
                 }
             });
 
@@ -307,11 +395,9 @@ Crypt.sign_encrypt_sign = function (signing_key, encryption_key, data, iv, f)
         iv = null;
     }
 
-    var This = this,
-        signer = new This(signing_key),
-        encrypter = new This(encryption_key);
+    var This = this;
 
-    signer.sign(data, function (err, sv)
+    This.make(signing_key, function (err, signer)
     {
         if (err)
         {
@@ -319,7 +405,7 @@ Crypt.sign_encrypt_sign = function (signing_key, encryption_key, data, iv, f)
             return;
         }
 
-        encrypter.encrypt(sv, iv, function (err, ev)
+        This.make(encryption_key, function (err, encrypter)
         {
             if (err)
             {
@@ -327,7 +413,25 @@ Crypt.sign_encrypt_sign = function (signing_key, encryption_key, data, iv, f)
                 return;
             }
 
-            signer.sign(ev, f);
+            signer.sign(data, function (err, sv)
+            {
+                if (err)
+                {
+                    f(err);
+                    return;
+                }
+
+                encrypter.encrypt(sv, iv, function (err, ev)
+                {
+                    if (err)
+                    {
+                        f(err);
+                        return;
+                    }
+
+                    signer.sign(ev, f);
+                });
+            });
         });
     });
 };
@@ -336,11 +440,9 @@ Crypt.verify_decrypt_verify = function (decryption_key, verifying_key, data, f)
 {
     "use strict";
 
-    var This = this,
-        verifier = new This(verifying_key),
-        decrypter = new This(decryption_key);
+    var This = this;
 
-    verifier.verify(data, function (err, vv)
+    This.make(verifying_key, function (err, verifier)
     {
         if (err)
         {
@@ -348,7 +450,7 @@ Crypt.verify_decrypt_verify = function (decryption_key, verifying_key, data, f)
             return;
         }
 
-        decrypter.decrypt(vv, function (err, dv)
+        This.make(decryption_key, function (err, decrypter)
         {
             if (err)
             {
@@ -356,7 +458,25 @@ Crypt.verify_decrypt_verify = function (decryption_key, verifying_key, data, f)
                 return;
             }
 
-            verifier.verify(dv, f);
+            verifier.verify(data, function (err, vv)
+            {
+                if (err)
+                {
+                    f(err);
+                    return;
+                }
+
+                decrypter.decrypt(vv, function (err, dv)
+                {
+                    if (err)
+                    {
+                        f(err);
+                        return;
+                    }
+
+                    verifier.verify(dv, f);
+                });
+            });
         });
     });
 };
@@ -366,9 +486,10 @@ var SlowCrypt;
 if (typeof require === 'function')
 {
     var crypto = require('crypto'),
-        ursa = require('ursa');
+        ursa = require('ursa'),
+        workaround = process.version.lastIndexOf('v0.8', 0) === 0;
 
-    Crypt.parse_key = Crypt.prototype.parse_key = function (key)
+    Crypt.parse_key = function (key, cb)
     {
         "use strict";
 
@@ -383,6 +504,8 @@ if (typeof require === 'function')
             {
                 key = ursa.createPrivateKey(key, '', 'utf8');
             }
+
+            cb(null, key);
         }
         else if (key && key.password)
         {
@@ -396,38 +519,51 @@ if (typeof require === 'function')
                 salt = hash.digest();
             }
 
-            /*jslint stupid: true */
-            key = {
-                key: crypto.pbkdf2Sync(key.password,
-                                       salt,
-                                       key.iterations,
-                                       AES_128_KEY_SIZE),
-                salt: salt,
-                iterations: key.iterations
-            };
-            /*jslint stupid: false */
-        }
+            crypto.pbkdf2(key.password, salt, key.iterations, AES_128_KEY_SIZE,
+            function (err, derived_key)
+            {
+                if (err)
+                {
+                    cb(err);
+                    return;
+                }
 
-        return key;
+                if (key.progress)
+                {
+                    key.progress(100);
+                }
+
+                cb(null,
+                {
+                    key: derived_key,
+                    salt: salt
+                });
+            });
+        }
+        else
+        {
+            cb(null, key);
+        }
     };
 
     Crypt.prototype.stringify = function (data)
     {
         "use strict";
-        return this.json ? new Buffer(JSON.stringify(data), 'utf8') : data;
+        return this.options.json ? new Buffer(JSON.stringify(data), 'utf8') : data;
     };
 
     Crypt.prototype.parse = function (data)
     {
         "use strict";
-        return this.json ? JSON.parse(data.toString('utf8')) : data;
+        return this.options.json ? JSON.parse(data.toString('utf8')) : data;
     };
 
     Crypt.prototype.encrypt = function (data, iv, f)
     {
         "use strict";
 
-        var key, ekey, iv64, cipher, jdata, edata = '';
+        var key, ekey, iv64, cipher, jdata, edata = '',
+            encoding = workaround ? 'hex' : 'base64';
 
         try
         {
@@ -457,20 +593,25 @@ if (typeof require === 'function')
             iv64 = iv.toString('base64');
 
             cipher = crypto.createCipheriv('AES-128-CBC', key, iv);
-            cipher.setAutoPadding(this.pad);
+            cipher.setAutoPadding(this.options.pad);
 
             jdata = this.stringify(data);
 
-            if (this.check)
+            if (this.options.check)
             {
                 edata = cipher.update(crypto.createHash('sha256')
                                 .update(jdata)
-                                .digest(), null, 'base64');
+                                .digest(), null, encoding);
             }
 
-            edata += cipher.update(jdata, null, 'base64');
+            edata += cipher.update(jdata, null, encoding);
 
-            edata += cipher.final('base64');
+            edata += cipher.final(encoding);
+
+            if (workaround)
+            {
+                edata = new Buffer(edata, encoding).toString('base64');
+            }
         }
         catch (ex)
         {
@@ -512,13 +653,20 @@ if (typeof require === 'function')
                     'AES-128-CBC',
                     key,
                     new Buffer(data.iv, 'base64'));
-            decipher.setAutoPadding(this.pad);
+            decipher.setAutoPadding(this.options.pad);
 
             ddata = decipher.update(data.data, 'base64');
 
-            ddata = Buffer.concat([ddata, decipher.final()]);
+            if (workaround)
+            {
+                ddata = new Buffer(ddata + decipher.final(), 'binary');
+            }
+            else
+            {
+                ddata = Buffer.concat([ddata, decipher.final()]);
+            }
 
-            if (this.check)
+            if (this.options.check)
             {
                 jdata = ddata.slice(SHA256_SIZE);
 
@@ -645,6 +793,7 @@ if (typeof require === 'function')
         Crypt.apply(this, arguments);
     };
 
+    SlowCrypt.make = Crypt.make;
     SlowCrypt.get_version = Crypt.get_version;
     SlowCrypt.get_key_size = Crypt.get_key_size;
     SlowCrypt.sign_encrypt_sign = Crypt.sign_encrypt_sign;
@@ -671,11 +820,11 @@ var get_char_codes = function(s)
     return r;
 };
 
-SlowCrypt.parse_key = SlowCrypt.prototype.parse_key = function (key)
+SlowCrypt.parse_key = function (key, cb)
 {
     "use strict";
 
-    var r = key, salt;
+    var rsa_key, salt, pbkdf2;
 
     if (typeof key === 'string')
     {
@@ -683,20 +832,22 @@ SlowCrypt.parse_key = SlowCrypt.prototype.parse_key = function (key)
         {
             if (key.indexOf('PUBLIC KEY') > 0)
             {
-                r = new RSAKey();
-                r.readPublicKeyFromPEMString(key);
-                return r;
+                rsa_key = new RSAKey();
+                rsa_key.readPublicKeyFromPEMString(key);
+                cb(null, rsa_key);
+                return;
             }
 
             if (key.indexOf('PRIVATE KEY') > 0)
             {
-                r = new RSAKey();
-                r.readPrivateKeyFromPEMString(key);
-                return r;
+                rsa_key = new RSAKey();
+                rsa_key.readPrivateKeyFromPEMString(key);
+                cb(null, rsa_key);
+                return;
             }
         }
 
-        r = get_char_codes(key);
+        cb(null, get_char_codes(key));
     }
     else if (key && key.password)
     {
@@ -714,18 +865,33 @@ SlowCrypt.parse_key = SlowCrypt.prototype.parse_key = function (key)
             salt = rstr_sha1(salt);
         }
 
-        r = {
-            key: get_char_codes(CryptoJS.PBKDF2(
-                    CryptoJS.enc.Latin1.parse(key.password),
-                    CryptoJS.enc.Latin1.parse(salt),
-                    { iterations: key.iterations }).toString(
-                            CryptoJS.enc.Latin1)),
-            salt: salt,
-            iterations: key.iterations
-        };
-    }
+        pbkdf2 = new PBKDF2(key.password,
+                            salt,
+                            key.iterations,
+                            AES_128_KEY_SIZE);
 
-    return r;
+        pbkdf2.deriveKey(
+            key.progress || function () { return undefined; },
+            function (derived_key)
+            {
+                var bytes = [], i;
+
+                for (i = 0; i < derived_key.length; i += 2)
+                {
+                    bytes.push(parseInt(derived_key.substr(i, 2), 16));
+                }
+
+                cb(null,
+                {
+                    key: bytes,
+                    salt: salt
+                });
+            });
+    }
+    else
+    {
+        cb(null, key);
+    }
 };
 
 SlowCrypt.prototype.stringify = function (data)
@@ -733,13 +899,13 @@ SlowCrypt.prototype.stringify = function (data)
     "use strict";
 
     // http://ecmanaut.blogspot.co.uk/2006/07/encoding-decoding-utf8-in-javascript.html
-    return this.json ? unescape(encodeURIComponent(JSON.stringify(data))) : data;
+    return this.options.json ? unescape(encodeURIComponent(JSON.stringify(data))) : data;
 };
 
 SlowCrypt.prototype.parse = function (data)
 {
     "use strict";
-    return this.json ? JSON.parse(decodeURIComponent(escape(data))) : data;
+    return this.options.json ? JSON.parse(decodeURIComponent(escape(data))) : data;
 };
 
 SlowCrypt.prototype.encrypt = function (data, iv, f)
@@ -783,7 +949,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
 
         jdata = this.stringify(data);
 
-        if (!this.pad)
+        if (!this.options.pad)
         {
             slowAES._padBytesIn_save = slowAES.padBytesIn;
             slowAES.padBytesIn = function (data)
@@ -792,7 +958,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
             };
         }
 
-        if (this.check)
+        if (this.options.check)
         {
             if (typeof jdata !== 'string')
             {
@@ -816,7 +982,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
         }
         finally
         {
-            if (!this.pad)
+            if (!this.options.pad)
             {
                 slowAES.padBytesIn = slowAES._padBytesIn_save;
             }
@@ -861,7 +1027,7 @@ SlowCrypt.prototype.decrypt = function (data, f)
             key_arr = this.key.key || this.key;
         }
 
-        if (!this.pad)
+        if (!this.options.pad)
         {
             slowAES._unpadBytesOut_save = slowAES.unpadBytesOut;
             slowAES.unpadBytesOut = function (data)
@@ -880,13 +1046,13 @@ SlowCrypt.prototype.decrypt = function (data, f)
         }
         finally
         {
-            if (!this.pad)
+            if (!this.options.pad)
             {
                 slowAES.unpadBytesOut = slowAES._unpadBytesOut_save;
             }
         }
 
-        if (this.check)
+        if (this.options.check)
         {
             jdata = ddata.substr(SHA256_SIZE);
 

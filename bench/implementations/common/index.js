@@ -3,7 +3,7 @@
          Crypt: false,
          priv_pem: false,
          pub_pem: false */
-/*jslint node: true */
+/*jslint node: true, unparam: true */
 
 process.env.SLOW = 'yes';
 var crypto = require('crypto');
@@ -13,10 +13,56 @@ var simple_crypt = require('../../..');
 global.FastCrypt = simple_crypt.Crypt;
 global.SlowCrypt = simple_crypt.SlowCrypt;
 
-global.sc_sym_fast = new FastCrypt(crypto.randomBytes(Crypt.get_key_size()));
-global.sc_asym_priv_fast = new FastCrypt(priv_pem);
-global.sc_asym_pub_fast = new FastCrypt(pub_pem);
+var async = require('async');
 
-global.sc_sym_slow = new SlowCrypt(crypto.randomBytes(Crypt.get_key_size()));
-global.sc_asym_priv_slow = new SlowCrypt(priv_pem);
-global.sc_asym_pub_slow = new SlowCrypt(pub_pem);
+function setter(cb, name)
+{
+    "use strict";
+
+    return function (err, crypt)
+    {
+        if (err)
+        {
+            cb(err);
+            return;
+        }
+
+        global[name] = crypt;
+        cb(null, crypt);
+    };
+}
+
+module.exports = function (times, cb)
+{
+    "use strict";
+    
+    async.parallel([
+        function (cb)
+        {
+            FastCrypt.make(crypto.randomBytes(Crypt.get_key_size()),
+                           setter(cb, 'sc_sym_fast'));
+        },
+        function (cb)
+        {
+            FastCrypt.make(priv_pem, setter(cb, 'sc_asym_priv_fast'));
+        },
+        function (cb)
+        {
+            FastCrypt.make(pub_pem, setter(cb, 'sc_asym_pub_fast'));
+        },
+        function (cb)
+        {
+            SlowCrypt.make(crypto.randomBytes(Crypt.get_key_size()),
+                           setter(cb, 'sc_sym_slow'));
+        },
+        function (cb)
+        {
+            SlowCrypt.make(priv_pem, setter(cb, 'sc_asym_priv_slow'));
+        },
+        function (cb)
+        {
+            SlowCrypt.make(pub_pem, setter(cb, 'sc_asym_pub_slow'));
+        }
+    ], cb);
+};
+

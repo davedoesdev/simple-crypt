@@ -34,13 +34,21 @@ describe('encrypt_decrypt_symmetric', function ()
     {
         run_tasks(function (task, cb)
         {
-            new Crypt(task.key, vector_helpers.vecopts).encrypt(task.plaintext, task.iv,
-            function (err, v)
+            Crypt.make(task.key, vector_helpers.vecopts, function (err, encrypt)
             {
-                expr(expect(err, 'error').not.to.exist);
-                expect(v.data, 'expected ciphertext').to.equal(task.ciphertext.toString('base64'));
+                if (err)
+                {
+                    cb(err);
+                    return;
+                }
+                
+                encrypt.encrypt(task.plaintext, task.iv, function (err, v)
+                {
+                    expr(expect(err, 'error').not.to.exist);
+                    expect(v.data, 'expected ciphertext').to.equal(task.ciphertext.toString('base64'));
 
-                cb();
+                    cb();
+                });
             });
         }, callback);
     });
@@ -49,18 +57,27 @@ describe('encrypt_decrypt_symmetric', function ()
     {
         run_tasks(function (task, cb)
         {
-            new Crypt(task.key, vector_helpers.vecopts).decrypt(
+            Crypt.make(task.key, vector_helpers.vecopts, function (err, decrypt)
             {
-                iv: task.iv.toString('base64'),
-                data: task.ciphertext.toString('base64'),
-                version: Crypt.get_version()
-            },
-            function (err, v)
-            {
-                expr(expect(err, 'error').not.to.exist);
-                expect(v.toString('base64'), 'expected plaintext').to.equal(task.plaintext.toString('base64'));
+                if (err)
+                {
+                    cb(err);
+                    return;
+                }
+                
+                decrypt.decrypt(
+                {
+                    iv: task.iv.toString('base64'),
+                    data: task.ciphertext.toString('base64'),
+                    version: Crypt.get_version()
+                },
+                function (err, v)
+                {
+                    expr(expect(err, 'error').not.to.exist);
+                    expect(v.toString('base64'), 'expected plaintext').to.equal(task.plaintext.toString('base64'));
 
-                cb();
+                    cb();
+                });
             });
         }, callback);
     });

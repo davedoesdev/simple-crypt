@@ -4,7 +4,7 @@ Javascript library for signing and encrypting data.
 
 - Consistent API across Node.js and browser.
 - On Node.js wraps [crypto](http://nodejs.org/api/crypto.html) and [ursa](https://github.com/Obvious/ursa) modules.
-- On browser wraps [SlowAES](https://code.google.com/p/slowaes/), [CryptoJS](https://code.google.com/p/crypto-js/), [jsrsasign](http://kjur.github.io/jsrsasign/) and [js-rsa-pem](https://bitbucket.org/adrianpasternak/js-rsa-pem/wiki/Home).
+- On browser wraps [SlowAES](https://code.google.com/p/slowaes/), [pbkdf2.js](http://anandam.name/pbkdf2/), [CryptoJS](https://code.google.com/p/crypto-js/), [jsrsasign](http://kjur.github.io/jsrsasign/) and [js-rsa-pem](https://bitbucket.org/adrianpasternak/js-rsa-pem/wiki/Home).
 - Hard-coded to HMAC-SHA-256 for symmetric signing.
 - Hard-coded to RSA-SHA-256 with [RSASSA-PSS](http://tools.ietf.org/html/rfc3447#section-8.1) encoding for asymmetric signing.
 - Hard-coded to AES-128-CBC for symmetric key encryption (with optional SHA-256 checksum).
@@ -19,11 +19,18 @@ Example:
 ```javascript
 var Crypt = require('simple-crypt').Crypt;
 var data = { device_id: 'temperature_sensor0', value: 15.765 };
-new Crypt('my signing key').sign(data, function (err, signed)
+
+Crypt.make('my signing key', function (err, signer)
 {
-    new Crypt(this.get_key()).verify(signed, function (err, verified)
+    signer.sign(data, function (err, signed)
     {
-        assert.deepEqual(verified, data);
+        Crypt.make(this.get_key(), function (err, verifier)
+        {
+            verifier.verify(signed, function (err, verified)
+            {
+                assert.deepEqual(verified, data);
+            });
+        });
     });
 });
 ```
@@ -52,11 +59,17 @@ Browser:
 ### Encryption
 
 ```javascript
-new Crypt(crypto.randomBytes(Crypt.get_key_size())).encrypt(data, function (err, encrypted)
+Crypt.make(crypto.randomBytes(Crypt.get_key_size()), function (err, encrypter)
 {
-    new Crypt(this.get_key()).decrypt(encrypted, function (err, decrypted)
+    encrypter.encrypt(data, function (err, encrypted)
     {
-        assert.deepEqual(decrypted, data);
+        Crypt.make(this.get_key(), function (err, decrypter)
+        {
+            decrypter.decrypt(encrypted, function (err, decrypted)
+            {
+                assert.deepEqual(decrypted, data);
+            });
+        });
     });
 });
 ```
@@ -66,18 +79,32 @@ new Crypt(crypto.randomBytes(Crypt.get_key_size())).encrypt(data, function (err,
 ```javascript
 var priv_pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEA4qiw8PWs7PpnnC2BUEoDRcwXF8pq8XT1/3Hc3cuUJwX/otNe\nfr/Bomr3dtM0ERLN3DrepCXvuzEU5FcJVDUB3sI+pFtjjLBXD/zJmuL3Afg91J9p\n79+Dm+43cR6wuKywVJx5DJIdswF6oQDDzhwu89d2V5x02aXB9LqdXkPwiO0eR5s/\nxHXgASl+hqDdVL9hLod3iGa9nV7cElCbcl8UVXNPJnQAfaiKazF+hCdl/syrIh0K\nCZ5opggsTJibo8qFXBmG4PkT5YbhHE11wYKILwZFSvZ9iddRPQK3CtgFiBnXbVwU\n5t67tn9pMizHgypgsfBoeoyBrpTuc4egSCpjsQIDAQABAoIBAF2sU/wxvHbwAhQE\npnXVMMcO0thtOodxzBz3JM2xThhWnVDgxCPkAhWq2X0NSm5n9BY5ajwyxYH6heTc\np6lagtxaMONiNaE2W7TqxzMw696vhnYyL+kH2e9+owEoKucXz4QYatqsJIQPb2vM\n0h+DfFAgUvNgYNZ2b9NBsLn9oBImDfYueHyqpRGTdX5urEVtmQz029zaC+jFc7BK\nY6qBRSTwFwnVgE+Td8UgdrO3JQ/0Iwk/lkphnhls/BYvdNC5O8oEppozNVmMV8jm\n61K+agOh1KD8ky60iQFjo3VdFpUjI+W0+sYiYpDb4+Z9OLOTK/5J2EBAGim9siyd\ngHspx+UCgYEA9+t5Rs95hG9Q+6mXn95hYduPoxdFCIFhbGl6GBIGLyHUdD8vmgwP\ndHo7Y0hnK0NyXfue0iFBYD94/fuUe7GvcXib93heJlvPx9ykEZoq9DZnhPFBlgIE\nSGeD8hClazcr9O99Fmg3e7NyTuVou+CIublWWlFyN36iamP3a08pChsCgYEA6gvT\npi/ZkYI1JZqxXsTwzAsR1VBwYslZoicwGNjRzhvuqmqwNvK17dnSQfIrsC2VnG2E\nUbE5EIAWbibdoL4hWUpPx5Tl096OjC3qBR6okAxbVtVEY7Rmv7J9RwriXhtD1DYp\neBvo3eQonApFkfI8Lr2kuKGIgwzkZ72QLXsKJiMCgYBZXBCci0/bglwIObqjLv6e\nzQra2BpT1H6PGv2dC3IbLvBq7hN0TQCNFTmusXwuReNFKNq4FrB/xqEPusxsQUFh\nfv2Il2QoI1OjUE364jy1RZ7Odj8TmKp+hoEykPluybYYVPIbT3kgJy/+bAXyIh5m\nAv2zFEQ86HIWMu4NSb0bHQKBgETEZNOXi52tXGBIK4Vk6DuLpRnAIMVl0+hJC2DB\nlCOzIVUBM/VxKvNP5O9rcFq7ihIEO7SlFdc7S1viH4xzUOkjZH2Hyl+OLOQTOYd3\nkp+AgfXpg8an4ujAUP7mu8xaxns7zsNzr+BCgYwXmIlhWz2Aiz2UeL/IsfOpRwuV\n801xAoGADQB84MJe/X8xSUZQzpn2KP/yZ7C517qDJjComGe3mjVxTIT5XAaa1tLy\nT4mvpSeYDJkBD8Hxr3fB1YNDWNbgwrNPGZnUTBNhxIsNLPnV8WySiW57LqVXlggH\nvjFmyDdU5Hh6ma4q+BeAqbXZSJz0cfkBcBLCSe2gIJ/QJ3YJVQI=\n-----END RSA PRIVATE KEY-----";
 var pub_pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4qiw8PWs7PpnnC2BUEoD\nRcwXF8pq8XT1/3Hc3cuUJwX/otNefr/Bomr3dtM0ERLN3DrepCXvuzEU5FcJVDUB\n3sI+pFtjjLBXD/zJmuL3Afg91J9p79+Dm+43cR6wuKywVJx5DJIdswF6oQDDzhwu\n89d2V5x02aXB9LqdXkPwiO0eR5s/xHXgASl+hqDdVL9hLod3iGa9nV7cElCbcl8U\nVXNPJnQAfaiKazF+hCdl/syrIh0KCZ5opggsTJibo8qFXBmG4PkT5YbhHE11wYKI\nLwZFSvZ9iddRPQK3CtgFiBnXbVwU5t67tn9pMizHgypgsfBoeoyBrpTuc4egSCpj\nsQIDAQAB\n-----END PUBLIC KEY-----";
-new Crypt(priv_pem).sign(data, function (err, signed)
+
+Crypt.make(priv_pem, function (err, signer)
 {
-    new Crypt(pub_pem).verify(signed, function (err, verified)
+    signer.sign(data, function (err, signed)
     {
-        assert.deepEqual(verified, data);
+        Crypt.make(pub_pem, function (err, verifier)
+        {
+            verifier.verify(signed, function (err, verified)
+            {
+                assert.deepEqual(verified, data);
+            });
+        });
     });
 });
-new Crypt(pub_pem).encrypt(data, function (err, encrypted)
+
+Crypt.make(pub_pem, function (err, encrypter)
 {
-    new Crypt(priv_pem).decrypt(encrypted, function (err, decrypted)
+    encrypter.encrypt(data, function (err, encrypted)
     {
-        assert.deepEqual(decrypted, data);
+        Crypt.make(priv_pem, function (err, decrypter)
+        {
+            decrypter.decrypt(encrypted, function (err, decrypted)
+            {
+                assert.deepEqual(decrypted, data);
+            });
+        });
     });
 });
 ```
@@ -86,22 +113,36 @@ new Crypt(pub_pem).encrypt(data, function (err, encrypted)
 
 ```javascript
 var pw_info = { password: 'P@ssW0rd!', iterations: 10000 };
-new Crypt(pw_info).sign(data, function (err, signed)
+
+Crypt.make(pw_info, function (err, signer)
 {
-    var salted = Object.create(pw_info);
-    salted.salt = this.get_key().salt;
-    new Crypt(salted).verify(signed, function (err, verified)
+    signer.sign(data, function (err, signed)
     {
-        assert.deepEqual(verified, data);
+        var salted = Object.create(pw_info);
+        salted.salt = this.get_key().salt;
+        Crypt.make(salted, function (err, verifier)
+        {
+            verifier.verify(signed, function (err, verified)
+            {
+                assert.deepEqual(verified, data);
+            });
+        });
     });
 });
-new Crypt(pw_info).encrypt(data, function (err, encrypted)
+
+Crypt.make(pw_info, function (err, encrypter)
 {
-    var salted = Object.create(pw_info);
-    salted.salt = this.get_key().salt;
-    new Crypt(salted).decrypt(encrypted, function (err, decrypted)
+    encrypter.encrypt(data, function (err, encrypted)
     {
-        assert.deepEqual(decrypted, data);
+        var salted = Object.create(pw_info);
+        salted.salt = this.get_key().salt;
+        Crypt.make(salted, function (err, decrypter)
+        {
+            decrypter.decrypt(encrypted, function (err, decrypted)
+            {
+                assert.deepEqual(decrypted, data);
+            });
+        });
     });
 });
 ```
@@ -109,20 +150,33 @@ new Crypt(pw_info).encrypt(data, function (err, encrypted)
 ### Conditional operation
 
 ```javascript
-new Crypt('some key').maybe_sign(false, data, function (err, signed)
+Crypt.make('some key', function (err, signer)
 {
-    assert.equal(signed.signed, false);
-    new Crypt(this.get_key()).maybe_verify(signed, function (err, verified)
+    signer.maybe_sign(false, data, function (err, signed)
     {
-        assert.deepEqual(verified, data);
+        assert.equal(signed.signed, false);
+        Crypt.make(this.get_key(), function (err, verifier)
+        {
+            verifier.maybe_verify(signed, function (err, verified)
+            {
+                assert.deepEqual(verified, data);
+            });
+        });
     });
 });
-new Crypt(crypto.randomBytes(Crypt.get_key_size())).maybe_encrypt(true, data, function (err, encrypted)
+
+Crypt.make(crypto.randomBytes(Crypt.get_key_size()), function (err, encrypter)
 {
-    assert.equal(encrypted.encrypted, true);
-    new Crypt(this.get_key()).maybe_decrypt(encrypted, function (err, decrypted)
+    encrypter.maybe_encrypt(true, data, function (err, encrypted)
     {
-        assert.deepEqual(decrypted, data);
+        assert.equal(encrypted.encrypted, true);
+        Crypt.make(this.get_key(), function (err, decrypter)
+        {
+            decrypter.maybe_decrypt(encrypted, function (err, decrypted)
+            {
+                assert.deepEqual(decrypted, data);
+            });
+        });
     });
 });
 ```
@@ -133,10 +187,10 @@ new Crypt(crypto.randomBytes(Crypt.get_key_size())).maybe_encrypt(true, data, fu
 var pub_pems = { temperature_sensor0: pub_pem };
 var priv_pems = { temperature_sensor0: priv_pem };
 
-new Crypt().maybe_sign(data, function (err, signed)
+Crypt.make().maybe_sign(data, function (err, signed)
 {
     assert.equal(signed.signed, true);
-    new Crypt().maybe_verify(signed, function (err, verified)
+    Crypt.make().maybe_verify(signed, function (err, verified)
     {
         assert.deepEqual(verified, data);
     }, function (cb, device_id)
@@ -148,10 +202,10 @@ new Crypt().maybe_sign(data, function (err, signed)
     cb(null, priv_pems[device_id], device_id);
 }, data.device_id);
 
-new Crypt().maybe_encrypt(data, function (err, encrypted)
+Crypt.make().maybe_encrypt(data, function (err, encrypted)
 {
     assert.equal(encrypted.encrypted, true);
-    new Crypt().maybe_decrypt(encrypted, function (err, decrypted)
+    Crypt.make().maybe_decrypt(encrypted, function (err, decrypted)
     {
         assert.deepEqual(decrypted, data);
     }, function (cb, device_id)
@@ -179,11 +233,14 @@ Crypt.sign_encrypt_sign(priv_pem, pub_pem, data, function (err, data_out)
 ### JSON-less encoding
 
 ```javascript
-new Crypt('some signing key', { json: false }).sign(new Buffer('"hello"'), function (err, signed)
+Crypt.make('some signing key', { json: false }, function (err, signer)
 {
-    this.verify(signed, function (err, verified)
+    signer.sign(new Buffer('"hello"'), function (err, signed)
     {
-        assert.equal(verified, '"hello"');
+        this.verify(signed, function (err, verified)
+        {
+            assert.equal(verified, '"hello"');
+        });
     });
 });
 ```
@@ -259,12 +316,12 @@ slow|3,130|3,129,778|801
 <a name="tableofcontents"></a>
 
 
-## Constructor
-- <a name="toc_cryptkey-options"></a>[Crypt](#cryptkey-options)
+## Create
+- <a name="toc_cryptmakekey-options-cb"></a><a name="toc_crypt"></a>[Crypt.make](#cryptmakekey-options-cb)
 
 ## Key functions
 - <a name="toc_cryptget_key_size"></a>[Crypt.get_key_size](#cryptget_key_size)
-- <a name="toc_cryptparse_keykey"></a>[Crypt.parse_key](#cryptparse_keykey)
+- <a name="toc_cryptparse_keykey-cb"></a>[Crypt.parse_key](#cryptparse_keykey-cb)
 - <a name="toc_cryptprototypeget_key"></a><a name="toc_cryptprototype"></a>[Crypt.prototype.get_key](#cryptprototypeget_key)
 
 ## Encryption
@@ -287,23 +344,25 @@ slow|3,130|3,129,778|801
 
 -----
 
-## Crypt(key, options)
+<a name="crypt"></a>
+
+## Crypt.make([key], [options], [cb])
 
 > Create a new `Crypt` object which can be used to sign, verify, encrypt and decrypt data.
 
 **Parameters:**
 
-- `{String | Buffer | Object | undefined} key` The key to use for operations using this object.
+- `{String | Buffer | Object} [key]` Optional key to use for operations using this object.
 
 
   - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key. Otherwise, strings should be binary encoded.
 
-  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1.
+  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
 
-  - Pass `undefined` if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
+  - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
 
-- `{Object} options` Optional settings:
+- `{Object} [options]` Optional settings:
 
 
   - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
@@ -313,8 +372,19 @@ slow|3,130|3,129,778|801
   - `{Boolean} pad` Whether to automatically pad encrypted data (using PKCS#7) to a multiple of the AES block size (16 bytes). Default is `true`.
 
 
+- `{Function} [cb]` Optional function called with the `Crypt` object. It's passed the following arguments:
 
-<sub>Go: [TOC](#tableofcontents)</sub>
+
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Crypt} crypt` The `Crypt` object. `key` (above) is parsed using [parse_key](#cryptparse_keykey-cb) and is available using [get_key](#cryptprototypeget_key).
+
+
+**Return:**
+
+`{Crypt}` The `Crypt` object. It will have no key until key parsing is complete and `cb` is called.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
 ## Crypt.get_key_size()
 
@@ -326,26 +396,26 @@ slow|3,130|3,129,778|801
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
-## Crypt.parse_key(key)
+## Crypt.parse_key(key, cb)
 
 > Parse a key. Call this if you want to use the same key for multiple `Crypt` objects but only incur the cost of parsing it once.
 
 **Parameters:**
 
-- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt](#cryptkey-options).
+- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt.make](#cryptmakekey-options-cb).
 
 
 
-**Return:**
-
-`{String | Buffer | Object}` Parsed key. You can pass this to [Crypt](#cryptkey-options). If the key looks like a PEM-encoded RSA key then an internal RSA key object is returned. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is returned:
+- `{Function} cb` Function called with the parsed key. It's passed the following arguments:
 
 
-- `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-- `{Buffer|String} salt` Binary-encoded salt value which was used to derive `key`.
+  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmake-key-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is returned. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is returned:
 
-- `{Number} iterations` Numer of iterations used with PBKDF2-SHA-1 to derive `key`.
+    - `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
+
+    - `{Buffer|String} salt` Binary-encoded salt value which was used to derive `key`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -357,24 +427,24 @@ slow|3,130|3,129,778|801
 
 **Return:**
 
-`{Object | Buffer | String}` The key. This could be a `Buffer`, binary-encoded string, internal RSA key object or an object containing a key derived from a password (see [parse_key](#cryptparse_keykey)).
+`{Object | Buffer | String}` The key. This could be a `Buffer`, binary-encoded string, internal RSA key object or an object containing a key derived from a password (see [parse_key](#cryptparse_keykey-cb)).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
 ## Crypt.prototype.encrypt(data, [iv], cb)
 
-> Encrypt data using AES-128-CBC and the key you passed to [Crypt](#cryptkey-options) when you created this object. If you passed a (PEM-encoded) RSA public key then a random AES key is created and the public key is used to encrypt it (using RSAES-OAEP). The encrypted AES key is made available along with the encrypted data (see below).
+> Encrypt data using AES-128-CBC and the key you passed to [Crypt.make](#cryptmakekey-options-cb) when you created this object. If you passed a (PEM-encoded) RSA public key then a random AES key is created and the public key is used to encrypt it (using RSAES-OAEP). The encrypted AES key is made available along with the encrypted data (see below).
 
 **Parameters:**
 
 - `{Object | Buffer | String} data` The data to be encrypted.
 
 
-  - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
-  - If you didn't pass `options.check` as `false` to [Crypt](#cryptkey-options) then a SHA-256 checksum is prepended to the data before it's encrypted.
+  - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is prepended to the data before it's encrypted.
 
-  - If you didn't pass `options.pad` as `false` to [Crypt](#cryptkey-options) then the data will be padded to a multiple of 16 bytes.
+  - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be padded to a multiple of 16 bytes.
 
 
 - `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created.
@@ -398,18 +468,18 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.decrypt(data, cb)
 
-> Decrypt data using AES-128-CBC and the key you passed to [Crypt](#cryptkey-options) when you created this object. If you passed a (PEM-encoded) RSA private key then an `ekey` property is expected to be present on the `data` parameter (below). The private key is used to decrypt the `ekey` in order to obtain the AES key.
+> Decrypt data using AES-128-CBC and the key you passed to [Crypt.make](#cryptmakekey-options-cb) when you created this object. If you passed a (PEM-encoded) RSA private key then an `ekey` property is expected to be present on the `data` parameter (below). The private key is used to decrypt the `ekey` in order to obtain the AES key.
 
 **Parameters:**
 
 - `{Object} data` A result object returned by [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
 
 
-  - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
 
-  - If you didn't pass `options.check` as `false` to [Crypt](#cryptkey-options) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
+  - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
 
-  - If you didn't pass `options.pad` as `false` to [Crypt](#cryptkey-options) then the decrypted data is expected to be padded to a multiple of 16 bytes and will be unpadded automatically.
+  - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the decrypted data is expected to be padded to a multiple of 16 bytes and will be unpadded automatically.
 
 
 - `{Function} cb` Function called with the result. It's passed the following arguments:
@@ -423,14 +493,14 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.sign(data, cb)
 
-> Sign a SHA-256 hash of some data using the key you passed to [Crypt](#cryptkey-options) when you created this object. If you passed a (PEM-encoded) RSA private key then the hash is signed using RSASSA-PSS. Otherwise, HMAC-SHA-256 is used to sign the data.
+> Sign a SHA-256 hash of some data using the key you passed to [Crypt.make](#cryptmakekey-options-cb) when you created this object. If you passed a (PEM-encoded) RSA private key then the hash is signed using RSASSA-PSS. Otherwise, HMAC-SHA-256 is used to sign the data.
 
 **Parameters:**
 
 - `{Object | Buffer | String} data` The data to be signed.
 
 
-  - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
 
 - `{Function} cb` Function called with the result. It's passed the following arguments:
@@ -449,14 +519,14 @@ slow|3,130|3,129,778|801
 
 ## Crypt.prototype.verify(data, cb)
 
-> Verify a signature by comparing it to a signed SHA-256 hash of some data. The signed hash is generated using the key you passed to [Crypt](#cryptkey-options) when you created this object. If you passed a (PEM-encoded) RSA public key then the hash is signed using RSASSA-PSS. Otherwise HMAC is used.
+> Verify a signature by comparing it to a signed SHA-256 hash of some data. The signed hash is generated using the key you passed to [Crypt.make](#cryptmakekey-options-cb) when you created this object. If you passed a (PEM-encoded) RSA public key then the hash is signed using RSASSA-PSS. Otherwise HMAC is used.
 
 **Parameters:**
 
 - `{Object} data` A result object returned by [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
 
 
-  - If you didn't pass `options.json` as `false` to [Crypt](#cryptkey-options) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
 
 
 - `{Function} cb` Function called with the result. It's passed the following arguments:

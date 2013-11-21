@@ -4,8 +4,16 @@
 var path = require('path'),
     fs = require('fs'),
     async = require('async'),
-    byline = require('byline'),
+    readable_stream = require('readable-stream'),
+    stream = require('stream'),
     vecdir = path.join(__dirname, 'fixtures', 'NIST Known Answer Test Vectors');
+
+if (stream.Transform === undefined)
+{
+    stream.Transform = readable_stream.Transform;
+}
+
+var byline = require('byline');
 
 exports.vecopts = { json: false, check: false, pad: false };
 

@@ -1679,405 +1679,190 @@ code.google.com/p/crypto-js/wiki/License
 }(Math));
 
 /*
-CryptoJS v3.1.2
-code.google.com/p/crypto-js
-(c) 2009-2013 by Jeff Mott. All rights reserved.
-code.google.com/p/crypto-js/wiki/License
-*/
-(function () {
-    // Shortcuts
-    var C = CryptoJS;
-    var C_lib = C.lib;
-    var WordArray = C_lib.WordArray;
-    var Hasher = C_lib.Hasher;
-    var C_algo = C.algo;
+ * JavaScript implementation of Password-Based Key Derivation Function 2
+ * (PBKDF2) as defined in RFC 2898.
+ * Version 1.5 
+ * Copyright (c) 2007, 2008, 2009, 2010, 2011, 2012, 2013 Parvez Anandam
+ * parvez@anandam.com
+ * http://anandam.com/pbkdf2
+ *
+ * Distributed under the BSD license
+ *
+ * Uses Paul Johnston's excellent SHA-1 JavaScript library sha1.js:
+ * http://pajhome.org.uk/crypt/md5/sha1.html
+ * (uses the binb_sha1(), rstr2binb(), binb2str(), rstr2hex() functions from that libary)
+ *
+ * Thanks to Felix Gartsman for pointing out a bug in version 1.0
+ * Thanks to Thijs Van der Schaeghe for pointing out a bug in version 1.1 
+ * Thanks to Richard Gautier for asking to clarify dependencies in version 1.2
+ * Updated contact information from version 1.3
+ * Thanks to Stuart Heinrich for pointing out updates to PAJ's SHA-1 library in version 1.4
+ */
 
-    // Reusable object
-    var W = [];
-
-    /**
-     * SHA-1 hash algorithm.
-     */
-    var SHA1 = C_algo.SHA1 = Hasher.extend({
-        _doReset: function () {
-            this._hash = new WordArray.init([
-                0x67452301, 0xefcdab89,
-                0x98badcfe, 0x10325476,
-                0xc3d2e1f0
-            ]);
-        },
-
-        _doProcessBlock: function (M, offset) {
-            // Shortcut
-            var H = this._hash.words;
-
-            // Working variables
-            var a = H[0];
-            var b = H[1];
-            var c = H[2];
-            var d = H[3];
-            var e = H[4];
-
-            // Computation
-            for (var i = 0; i < 80; i++) {
-                if (i < 16) {
-                    W[i] = M[offset + i] | 0;
-                } else {
-                    var n = W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16];
-                    W[i] = (n << 1) | (n >>> 31);
-                }
-
-                var t = ((a << 5) | (a >>> 27)) + e + W[i];
-                if (i < 20) {
-                    t += ((b & c) | (~b & d)) + 0x5a827999;
-                } else if (i < 40) {
-                    t += (b ^ c ^ d) + 0x6ed9eba1;
-                } else if (i < 60) {
-                    t += ((b & c) | (b & d) | (c & d)) - 0x70e44324;
-                } else /* if (i < 80) */ {
-                    t += (b ^ c ^ d) - 0x359d3e2a;
-                }
-
-                e = d;
-                d = c;
-                c = (b << 30) | (b >>> 2);
-                b = a;
-                a = t;
-            }
-
-            // Intermediate hash value
-            H[0] = (H[0] + a) | 0;
-            H[1] = (H[1] + b) | 0;
-            H[2] = (H[2] + c) | 0;
-            H[3] = (H[3] + d) | 0;
-            H[4] = (H[4] + e) | 0;
-        },
-
-        _doFinalize: function () {
-            // Shortcuts
-            var data = this._data;
-            var dataWords = data.words;
-
-            var nBitsTotal = this._nDataBytes * 8;
-            var nBitsLeft = data.sigBytes * 8;
-
-            // Add padding
-            dataWords[nBitsLeft >>> 5] |= 0x80 << (24 - nBitsLeft % 32);
-            dataWords[(((nBitsLeft + 64) >>> 9) << 4) + 14] = Math.floor(nBitsTotal / 0x100000000);
-            dataWords[(((nBitsLeft + 64) >>> 9) << 4) + 15] = nBitsTotal;
-            data.sigBytes = dataWords.length * 4;
-
-            // Hash final blocks
-            this._process();
-
-            // Return final computed hash
-            return this._hash;
-        },
-
-        clone: function () {
-            var clone = Hasher.clone.call(this);
-            clone._hash = this._hash.clone();
-
-            return clone;
-        }
-    });
-
-    /**
-     * Shortcut function to the hasher's object interface.
-     *
-     * @param {WordArray|string} message The message to hash.
-     *
-     * @return {WordArray} The hash.
-     *
-     * @static
-     *
-     * @example
-     *
-     *     var hash = CryptoJS.SHA1('message');
-     *     var hash = CryptoJS.SHA1(wordArray);
-     */
-    C.SHA1 = Hasher._createHelper(SHA1);
-
-    /**
-     * Shortcut function to the HMAC's object interface.
-     *
-     * @param {WordArray|string} message The message to hash.
-     * @param {WordArray|string} key The secret key.
-     *
-     * @return {WordArray} The HMAC.
-     *
-     * @static
-     *
-     * @example
-     *
-     *     var hmac = CryptoJS.HmacSHA1(message, key);
-     */
-    C.HmacSHA1 = Hasher._createHmacHelper(SHA1);
-}());
 
 /*
-CryptoJS v3.1.2
-code.google.com/p/crypto-js
-(c) 2009-2013 by Jeff Mott. All rights reserved.
-code.google.com/p/crypto-js/wiki/License
-*/
-(function () {
-    // Shortcuts
-    var C = CryptoJS;
-    var C_lib = C.lib;
-    var Base = C_lib.Base;
-    var C_enc = C.enc;
-    var Utf8 = C_enc.Utf8;
-    var C_algo = C.algo;
+ * The four arguments to the constructor of the PBKDF2 object are 
+ * the password, salt, number of iterations and number of bytes in
+ * generated key. This follows the RFC 2898 definition: PBKDF2 (P, S, c, dkLen)
+ *
+ * The method deriveKey takes two parameters, both callback functions:
+ * the first is used to provide status on the computation, the second
+ * is called with the result of the computation (the generated key in hex).
+ *
+ * Example of use:
+ *
+ *    <script src="sha1.js"></script>
+ *    <script src="pbkdf2.js"></script>
+ *    <script>
+ *    var mypbkdf2 = new PBKDF2("mypassword", "saltines", 1000, 16);
+ *    var status_callback = function(percent_done) {
+ *        document.getElementById("status").innerHTML = "Computed " + percent_done + "%"};
+ *    var result_callback = function(key) {
+ *        document.getElementById("status").innerHTML = "The derived key is: " + key};
+ *    mypbkdf2.deriveKey(status_callback, result_callback);
+ *    </script>
+ *    <div id="status"></div>
+ *
+ */
 
-    /**
-     * HMAC algorithm.
-     */
-    var HMAC = C_algo.HMAC = Base.extend({
-        /**
-         * Initializes a newly created HMAC.
-         *
-         * @param {Hasher} hasher The hash algorithm to use.
-         * @param {WordArray|string} key The secret key.
-         *
-         * @example
-         *
-         *     var hmacHasher = CryptoJS.algo.HMAC.create(CryptoJS.algo.SHA256, key);
-         */
-        init: function (hasher, key) {
-            // Init hasher
-            hasher = this._hasher = new hasher.init();
+function PBKDF2(password, salt, num_iterations, num_bytes)
+{
+	// Remember the password and salt
+	var m_bpassword = rstr2binb(password);
+	var m_salt = salt;
 
-            // Convert string to WordArray, else assume WordArray already
-            if (typeof key == 'string') {
-                key = Utf8.parse(key);
-            }
+	// Total number of iterations
+	var m_total_iterations = num_iterations;
 
-            // Shortcuts
-            var hasherBlockSize = hasher.blockSize;
-            var hasherBlockSizeBytes = hasherBlockSize * 4;
+	// Run iterations in chunks instead of all at once, so as to not block.
+	// Define size of chunk here; adjust for slower or faster machines if necessary.
+	var m_iterations_in_chunk = 10;
 
-            // Allow arbitrary length keys
-            if (key.sigBytes > hasherBlockSizeBytes) {
-                key = hasher.finalize(key);
-            }
+	// Iteration counter
+	var m_iterations_done = 0;
 
-            // Clamp excess bits
-            key.clamp();
+	// Key length, as number of bytes
+	var m_key_length = num_bytes;
 
-            // Clone key for inner and outer pads
-            var oKey = this._oKey = key.clone();
-            var iKey = this._iKey = key.clone();
+	// The hash cache
+	var m_hash = null;
 
-            // Shortcuts
-            var oKeyWords = oKey.words;
-            var iKeyWords = iKey.words;
+	// The length (number of bytes) of the output of the pseudo-random function.
+	// Since HMAC-SHA1 is the standard, and what is used here, it's 20 bytes.
+	var m_hash_length = 20;
 
-            // XOR keys with pad constants
-            for (var i = 0; i < hasherBlockSize; i++) {
-                oKeyWords[i] ^= 0x5c5c5c5c;
-                iKeyWords[i] ^= 0x36363636;
-            }
-            oKey.sigBytes = iKey.sigBytes = hasherBlockSizeBytes;
+	// Number of hash-sized blocks in the derived key (called 'l' in RFC2898)
+	var m_total_blocks = Math.ceil(m_key_length/m_hash_length);
 
-            // Set initial values
-            this.reset();
-        },
+	// Start computation with the first block
+	var m_current_block = 1;
 
-        /**
-         * Resets this HMAC to its initial state.
-         *
-         * @example
-         *
-         *     hmacHasher.reset();
-         */
-        reset: function () {
-            // Shortcut
-            var hasher = this._hasher;
+	// Used in the HMAC-SHA1 computations
+	var m_ipad = new Array(16);
+	var m_opad = new Array(16);
 
-            // Reset
-            hasher.reset();
-            hasher.update(this._iKey);
-        },
+	// This is where the result of the iterations gets sotred
+	var m_buffer = new Array(0x0,0x0,0x0,0x0,0x0);
+	
+	// The result
+	var m_key = "";
 
-        /**
-         * Updates this HMAC with a message.
-         *
-         * @param {WordArray|string} messageUpdate The message to append.
-         *
-         * @return {HMAC} This HMAC instance.
-         *
-         * @example
-         *
-         *     hmacHasher.update('message');
-         *     hmacHasher.update(wordArray);
-         */
-        update: function (messageUpdate) {
-            this._hasher.update(messageUpdate);
+	// This object
+	var m_this_object = this;
 
-            // Chainable
-            return this;
-        },
+	// The function to call with the result
+	var m_result_func;
 
-        /**
-         * Finalizes the HMAC computation.
-         * Note that the finalize operation is effectively a destructive, read-once operation.
-         *
-         * @param {WordArray|string} messageUpdate (Optional) A final message update.
-         *
-         * @return {WordArray} The HMAC.
-         *
-         * @example
-         *
-         *     var hmac = hmacHasher.finalize();
-         *     var hmac = hmacHasher.finalize('message');
-         *     var hmac = hmacHasher.finalize(wordArray);
-         */
-        finalize: function (messageUpdate) {
-            // Shortcut
-            var hasher = this._hasher;
+	// The function to call with status after computing every chunk
+	var m_status_func;
+	
+	// Set up the HMAC-SHA1 computations
+	if (m_bpassword.length > 16) m_bpassword = binb_sha1(m_bpassword, password.length * chrsz);
+	for(var i = 0; i < 16; ++i)
+	{
+		m_ipad[i] = m_bpassword[i] ^ 0x36363636;
+		m_opad[i] = m_bpassword[i] ^ 0x5C5C5C5C;
+	}
 
-            // Compute HMAC
-            var innerHash = hasher.finalize(messageUpdate);
-            hasher.reset();
-            var hmac = hasher.finalize(this._oKey.clone().concat(innerHash));
 
-            return hmac;
-        }
-    });
-}());
+	// Starts the computation
+	this.deriveKey = function(status_callback, result_callback)
+	{
+		m_status_func = status_callback;
+		m_result_func = result_callback;
+		setTimeout(function() { m_this_object.do_PBKDF2_iterations() }, 0);
+	}
 
-/*
-CryptoJS v3.1.2
-code.google.com/p/crypto-js
-(c) 2009-2013 by Jeff Mott. All rights reserved.
-code.google.com/p/crypto-js/wiki/License
-*/
-(function () {
-    // Shortcuts
-    var C = CryptoJS;
-    var C_lib = C.lib;
-    var Base = C_lib.Base;
-    var WordArray = C_lib.WordArray;
-    var C_algo = C.algo;
-    var SHA1 = C_algo.SHA1;
-    var HMAC = C_algo.HMAC;
 
-    /**
-     * Password-Based Key Derivation Function 2 algorithm.
-     */
-    var PBKDF2 = C_algo.PBKDF2 = Base.extend({
-        /**
-         * Configuration options.
-         *
-         * @property {number} keySize The key size in words to generate. Default: 4 (128 bits)
-         * @property {Hasher} hasher The hasher to use. Default: SHA1
-         * @property {number} iterations The number of iterations to perform. Default: 1
-         */
-        cfg: Base.extend({
-            keySize: 128/32,
-            hasher: SHA1,
-            iterations: 1
-        }),
+	// The workhorse
+	this.do_PBKDF2_iterations = function()
+	{
+		var iterations = m_iterations_in_chunk;
+		if (m_total_iterations - m_iterations_done < m_iterations_in_chunk)
+			iterations = m_total_iterations - m_iterations_done;
+			
+		for(var i=0; i<iterations; ++i)
+		{
+			// compute HMAC-SHA1 
+			if (m_iterations_done == 0)
+			{
+				var salt_block = m_salt +
+						String.fromCharCode(m_current_block >> 24 & 0xF) +
+						String.fromCharCode(m_current_block >> 16 & 0xF) +
+						String.fromCharCode(m_current_block >>  8 & 0xF) +
+						String.fromCharCode(m_current_block       & 0xF);
 
-        /**
-         * Initializes a newly created key derivation function.
-         *
-         * @param {Object} cfg (Optional) The configuration options to use for the derivation.
-         *
-         * @example
-         *
-         *     var kdf = CryptoJS.algo.PBKDF2.create();
-         *     var kdf = CryptoJS.algo.PBKDF2.create({ keySize: 8 });
-         *     var kdf = CryptoJS.algo.PBKDF2.create({ keySize: 8, iterations: 1000 });
-         */
-        init: function (cfg) {
-            this.cfg = this.cfg.extend(cfg);
-        },
+				m_hash = binb_sha1(m_ipad.concat(rstr2binb(salt_block)),
+								   512 + salt_block.length * 8);
+				m_hash = binb_sha1(m_opad.concat(m_hash), 512 + 160);
+			}
+			else
+			{
+				m_hash = binb_sha1(m_ipad.concat(m_hash), 
+								   512 + m_hash.length * 32);
+				m_hash = binb_sha1(m_opad.concat(m_hash), 512 + 160);
+			}
 
-        /**
-         * Computes the Password-Based Key Derivation Function 2.
-         *
-         * @param {WordArray|string} password The password.
-         * @param {WordArray|string} salt A salt.
-         *
-         * @return {WordArray} The derived key.
-         *
-         * @example
-         *
-         *     var key = kdf.compute(password, salt);
-         */
-        compute: function (password, salt) {
-            // Shortcut
-            var cfg = this.cfg;
+        	for(var j=0; j<m_hash.length; ++j)
+                	m_buffer[j] ^= m_hash[j];
 
-            // Init HMAC
-            var hmac = HMAC.create(cfg.hasher, password);
+			m_iterations_done++;
+		}
 
-            // Initial values
-            var derivedKey = WordArray.create();
-            var blockIndex = WordArray.create([0x00000001]);
+		// Call the status callback function
+		m_status_func( (m_current_block - 1 + m_iterations_done/m_total_iterations) / m_total_blocks * 100);
 
-            // Shortcuts
-            var derivedKeyWords = derivedKey.words;
-            var blockIndexWords = blockIndex.words;
-            var keySize = cfg.keySize;
-            var iterations = cfg.iterations;
+		if (m_iterations_done < m_total_iterations)
+		{
+			setTimeout(function() { m_this_object.do_PBKDF2_iterations() }, 0);
+		}
+		else
+		{
+			if (m_current_block < m_total_blocks)
+			{
+				// Compute the next block (T_i in RFC 2898)
+				
+				m_key += rstr2hex(binb2rstr(m_buffer));
+			
+				m_current_block++;
+				m_buffer = new Array(0x0,0x0,0x0,0x0,0x0);
+				m_iterations_done = 0;
 
-            // Generate key
-            while (derivedKeyWords.length < keySize) {
-                var block = hmac.update(salt).finalize(blockIndex);
-                hmac.reset();
-
-                // Shortcuts
-                var blockWords = block.words;
-                var blockWordsLength = blockWords.length;
-
-                // Iterations
-                var intermediate = block;
-                for (var i = 1; i < iterations; i++) {
-                    intermediate = hmac.finalize(intermediate);
-                    hmac.reset();
-
-                    // Shortcut
-                    var intermediateWords = intermediate.words;
-
-                    // XOR intermediate with block
-                    for (var j = 0; j < blockWordsLength; j++) {
-                        blockWords[j] ^= intermediateWords[j];
-                    }
-                }
-
-                derivedKey.concat(block);
-                blockIndexWords[0]++;
-            }
-            derivedKey.sigBytes = keySize * 4;
-
-            return derivedKey;
-        }
-    });
-
-    /**
-     * Computes the Password-Based Key Derivation Function 2.
-     *
-     * @param {WordArray|string} password The password.
-     * @param {WordArray|string} salt A salt.
-     * @param {Object} cfg (Optional) The configuration options to use for this computation.
-     *
-     * @return {WordArray} The derived key.
-     *
-     * @static
-     *
-     * @example
-     *
-     *     var key = CryptoJS.PBKDF2(password, salt);
-     *     var key = CryptoJS.PBKDF2(password, salt, { keySize: 8 });
-     *     var key = CryptoJS.PBKDF2(password, salt, { keySize: 8, iterations: 1000 });
-     */
-    C.PBKDF2 = function (password, salt, cfg) {
-        return PBKDF2.create(cfg).compute(password, salt);
-    };
-}());
+				setTimeout(function() { m_this_object.do_PBKDF2_iterations() }, 0);
+			}
+			else
+			{
+				// We've computed the final block T_l; we're done.
+			
+				var tmp = rstr2hex(binb2rstr(m_buffer));
+				m_key += tmp.substr(0, (m_key_length - (m_total_blocks - 1) * m_hash_length) * 2 );
+				
+				// Call the result callback function
+				m_result_func(m_key);
+			}
+		}
+	}
+}
 
 /*! (c) Tom Wu | http://www-cs-students.stanford.edu/~tjw/jsbn/
  */
@@ -4126,28 +3911,32 @@ function oaep_mgf1_arr(seed, len, hash)
     return mask;
 }
 
-var SHA1_SIZE = 20;
-
 // PKCS#1 (OAEP) pad input string s to n bytes, and return a bigint
-function oaep_pad(s, n, hash)
+function oaep_pad(s, n, hash, hashLen)
 {
-    if (s.length + 2 * SHA1_SIZE + 2 > n)
+    if (!hash)
+    {
+        hash = rstr_sha1;
+        hashLen = 20;
+    }
+
+    if (s.length + 2 * hashLen + 2 > n)
     {
         throw "Message too long for RSA";
     }
 
     var PS = '', i;
 
-    for (i = 0; i < n - s.length - 2 * SHA1_SIZE - 2; i += 1)
+    for (i = 0; i < n - s.length - 2 * hashLen - 2; i += 1)
     {
         PS += '\x00';
     }
 
-    var DB = rstr_sha1('') + PS + '\x01' + s;
-    var seed = new Array(SHA1_SIZE);
+    var DB = hash('') + PS + '\x01' + s;
+    var seed = new Array(hashLen);
     new SecureRandom().nextBytes(seed);
     
-    var dbMask = oaep_mgf1_arr(seed, DB.length, hash || rstr_sha1);
+    var dbMask = oaep_mgf1_arr(seed, DB.length, hash);
     var maskedDB = [];
 
     for (i = 0; i < DB.length; i += 1)
@@ -4155,7 +3944,7 @@ function oaep_pad(s, n, hash)
         maskedDB[i] = DB.charCodeAt(i) ^ dbMask.charCodeAt(i);
     }
 
-    var seedMask = oaep_mgf1_arr(maskedDB, seed.length, rstr_sha1);
+    var seedMask = oaep_mgf1_arr(maskedDB, seed.length, hash);
     var maskedSeed = [0];
 
     for (i = 0; i < seed.length; i += 1)
@@ -4210,8 +3999,8 @@ function RSAEncrypt(text) {
 }
 
 // Return the PKCS#1 OAEP RSA encryption of "text" as an even-length hex string
-function RSAEncryptOAEP(text, hash) {
-  var m = oaep_pad(text, (this.n.bitLength()+7)>>3, hash);
+function RSAEncryptOAEP(text, hash, hashLen) {
+  var m = oaep_pad(text, (this.n.bitLength()+7)>>3, hash, hashLen);
   if(m == null) return null;
   var c = this.doPublic(m);
   if(c == null) return null;
@@ -4288,11 +4077,15 @@ function oaep_mgf1_str(seed, len, hash)
     return mask;
 }
 
-var SHA1_SIZE = 20;
-
 // Undo PKCS#1 (OAEP) padding and, if valid, return the plaintext
-function oaep_unpad(d, n, hash)
+function oaep_unpad(d, n, hash, hashLen)
 {
+    if (!hash)
+    {
+        hash = rstr_sha1;
+        hashLen = 20;
+    }
+
     d = d.toByteArray();
 
     var i;
@@ -4309,15 +4102,15 @@ function oaep_unpad(d, n, hash)
 
     d = String.fromCharCode.apply(String, d);
 
-    if (d.length < 2 * SHA1_SIZE + 2)
+    if (d.length < 2 * hashLen + 2)
     {
         throw "Cipher too short";
     }
 
-    var maskedSeed = d.substr(1, SHA1_SIZE)
-    var maskedDB = d.substr(SHA1_SIZE + 1);
+    var maskedSeed = d.substr(1, hashLen)
+    var maskedDB = d.substr(hashLen + 1);
 
-    var seedMask = oaep_mgf1_str(maskedDB, SHA1_SIZE, hash || rstr_sha1);
+    var seedMask = oaep_mgf1_str(maskedDB, hashLen, hash);
     var seed = [], i;
 
     for (i = 0; i < maskedSeed.length; i += 1)
@@ -4326,7 +4119,7 @@ function oaep_unpad(d, n, hash)
     }
 
     var dbMask = oaep_mgf1_str(String.fromCharCode.apply(String, seed),
-                           d.length - SHA1_SIZE, rstr_sha1);
+                           d.length - hashLen, hash);
 
     var DB = [];
 
@@ -4337,12 +4130,12 @@ function oaep_unpad(d, n, hash)
 
     DB = String.fromCharCode.apply(String, DB);
 
-    if (DB.substr(0, SHA1_SIZE) !== rstr_sha1(''))
+    if (DB.substr(0, hashLen) !== hash(''))
     {
         throw "Hash mismatch";
     }
 
-    DB = DB.substr(SHA1_SIZE);
+    DB = DB.substr(hashLen);
 
     var first_one = DB.indexOf('\x01');
     var last_zero = (first_one != -1) ? DB.substr(0, first_one).lastIndexOf('\x00') : -1;
@@ -4458,11 +4251,11 @@ function RSADecrypt(ctext) {
 
 // Return the PKCS#1 OAEP RSA decryption of "ctext".
 // "ctext" is an even-length hex string and the output is a plain string.
-function RSADecryptOAEP(ctext, hash) {
+function RSADecryptOAEP(ctext, hash, hashLen) {
   var c = parseBigInt(ctext, 16);
   var m = this.doPrivate(c);
   if(m == null) return null;
-  return oaep_unpad(m, (this.n.bitLength()+7)>>3, hash);
+  return oaep_unpad(m, (this.n.bitLength()+7)>>3, hash, hashLen);
 }
 
 // Return the PKCS#1 RSA decryption of "ctext".
