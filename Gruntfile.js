@@ -113,7 +113,7 @@ module.exports = function (grunt)
             },
 
             start_phantomjs: {
-                cmd: 'phantomjs --webdriver=4444 --webdriver-loglevel=DEBUG --debug=true &'
+                cmd: 'phantomjs --webdriver=4444 --webdriver-loglevel=ERROR --debug=false &'
             },
 
             stop_phantomjs: {
