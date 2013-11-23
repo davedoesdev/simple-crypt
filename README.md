@@ -355,9 +355,11 @@ slow|3,130|3,129,778|801
 - `{String | Buffer | Object} [key]` Optional key to use for operations using this object.
 
 
-  - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key. Otherwise, strings should be binary encoded.
+  - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key. Note that how you exchange public keys with other parties is beyond the scope of this library.
 
-  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
+  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived. Note that how you exchange passwords with other parties is beyond the scope of this library.
+
+  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size][#cryptget_key_size]. It will be used as a symmetric key for encryption or signing. Note that how you exchange symmetric keys with other parties is beyond the scope of this library.
 
   - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
@@ -411,7 +413,7 @@ slow|3,130|3,129,778|801
 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is returned. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is returned:
+  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is received. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is received:
 
     - `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
 
@@ -472,7 +474,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
+- `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
 
 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
@@ -523,7 +525,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
+- `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
 
 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
@@ -582,7 +584,7 @@ slow|3,130|3,129,778|801
 
 
 
-- `{Object} data` A result object returned by [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb).
+- `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb).
 
 
 
@@ -620,7 +622,7 @@ slow|3,130|3,129,778|801
 
     - `{Object} data` Encryption result (data, initialisation vector etc) if the data was encrypted, otherwise the data.
 
-    - `{Object} [key_data]` If the data was encrypted and `get_key` was called (see below) then this is the key data returned by `get_key`.
+    - `{Object} [key_data]` If the data was encrypted and `get_key` was called (see below) then this is the key data received from `get_key`.
 
 
 - `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
@@ -646,7 +648,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key).
+- `{Object} data` A result object received from [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key).
 
 
 
@@ -698,7 +700,7 @@ slow|3,130|3,129,778|801
 
     - `{Object} data` Signing result (data, signature etc) if the data was signed, otherwise the data.
 
-    - `{Object} [key_data]` If the data was signed and `get_key` was called (see below) then this is the key data returned by `get_key`.
+    - `{Object} [key_data]` If the data was signed and `get_key` was called (see below) then this is the key data received from `get_key`.
 
 
 - `{Function} [get_key]` Optional function to call in order to get the signing key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
@@ -722,7 +724,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object returned by [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key).
+- `{Object} data` A result object received from [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key).
 
 
 
