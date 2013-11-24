@@ -359,7 +359,7 @@ slow|3,130|3,129,778|801
 
   - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived. Note that how you exchange passwords with other parties is beyond the scope of this library.
 
-  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size][#cryptget_key_size]. It will be used as a symmetric key for encryption or signing. Note that how you exchange symmetric keys with other parties is beyond the scope of this library.
+  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size][#cryptget_key_size]. It will be used as a symmetric key for encryption or signing. Note that how you exchange symmetric keys with other parties is beyond the scope of this library. Note also that if you intend to use the same key for multiple purposes, consider using a [key derivation function](http://csrc.nist.gov/publications/nistpubs/800-108/sp800-108.pdf) to derive separate keys and call [Crypt.make](#cryptmakekey-options-cb) separately for each.
 
   - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
