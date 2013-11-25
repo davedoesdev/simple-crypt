@@ -355,13 +355,23 @@ slow|3,130|3,129,778|801
 - `{String | Buffer | Object} [key]` Optional key to use for operations using this object.
 
 
-  - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key. Note that how you exchange public keys with other parties is beyond the scope of this library.
+  - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key.
 
-  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived. Note that how you exchange passwords with other parties is beyond the scope of this library.
+  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
 
-  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size](#cryptget_key_size). It will be used as a symmetric key for encryption or signing. Note that how you exchange symmetric keys with other parties is beyond the scope of this library. Note also that if you intend to use the same key for multiple purposes, consider using a [key derivation function](http://csrc.nist.gov/publications/nistpubs/800-108/sp800-108.pdf) to derive separate keys and call [Crypt.make](#cryptmakekey-options-cb) separately for each.
+  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size](#cryptget_key_size). It will be used as a symmetric key for encryption or signing.
 
   - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
+
+  - Note that how you exchange public keys, passwords or symmetric keys with other parties is beyond the scope of this library. You might consider using something like [Diffie-Hellman](http://nodejs.org/api/crypto.html#crypto_crypto_getdiffiehellman_group_name) to exchange symmetric keys but you might also need some kind of public key infrastructure to authenticate the message. That's just an example.
+
+  - Note also that if you intend to use the same key for multiple purposes, consider using a key derivation function to derive separate keys and call [Crypt.make](#cryptmakekey-options-cb) separately for each. For examples of key derivation functions, see the following:
+
+    - [Recommendation for Key Derivation Using Pseudorandom Functions](http://csrc.nist.gov/publications/nistpubs/800-108/sp800-108.pdf)
+
+    - [Recommendation for Key Derivation through Extraction-then-Expansion](http://csrc.nist.gov/publications/nistpubs/800-56C/SP-800-56C.pdf)
+
+    - [HMAC-based Extract-and-Expand Key Derivation Function](http://tools.ietf.org/html/rfc5869)
 
 
 - `{Object} [options]` Optional settings:
