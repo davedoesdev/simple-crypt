@@ -27,6 +27,7 @@ module.exports = function (grunt)
             'simple-crypt-deps': {
                 dest: 'dist/simple-crypt-deps.js',
                 src: ['slowaes/aes.js',
+                      'jsrsasign/ext/cryptojs-312-core-fix.js',
                       'crypto-js/build/components/sha256.js',
                       'pbkdf2.js',
                       'jsrsasign/ext/jsbn.js',
@@ -36,7 +37,6 @@ module.exports = function (grunt)
                       'jsrsasign/ext/sha256.js',
                       'jsrsasign/ext/rsa.js',
                       'jsrsasign/ext/rsa2.js',
-                      'jsrsasign/ext/cryptojs-312-core-fix.js',
                       'jsrsasign/asn1hex-1.1.js',
                       'jsrsasign/base64x-1.1.js',
                       'jsrsasign/crypto-1.1.js',
