@@ -183,16 +183,16 @@
     <h1>Code coverage report for <span class="entity">lib/simple-crypt.js</span></h1>
     <h2>
         
-        Statements: <span class="metric">85.03% <small>(375 / 441)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Statements: <span class="metric">85.2% <small>(380 / 446)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         
         
         Branches: <span class="metric">82.17% <small>(189 / 230)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         
         
-        Functions: <span class="metric">100% <small>(56 / 56)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Functions: <span class="metric">100% <small>(57 / 57)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         
         
-        Lines: <span class="metric">85.03% <small>(375 / 441)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
+        Lines: <span class="metric">85.2% <small>(380 / 446)</small></span> &nbsp;&nbsp;&nbsp;&nbsp;
         
     </h2>
     <div class="path"><a href="../index.html">All files</a> &#187; <a href="index.html">lib/</a> &#187; simple-crypt.js</div>
@@ -1377,7 +1377,23 @@
 1176
 1177
 1178
-1179</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
+1179
+1180
+1181
+1182
+1183
+1184
+1185
+1186
+1187
+1188
+1189
+1190
+1191
+1192
+1193
+1194
+1195</td><td class="line-coverage"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1868,6 +1884,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2052,7 +2071,6 @@
 <span class="cline-any cline-yes">32</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2197,6 +2215,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">670</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30197</span>
+<span class="cline-any cline-yes">30197</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1328260</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30197</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2</span>
@@ -3044,6 +3076,9 @@ var SlowCrypt;
 {
     var crypto = require('crypto'),
         ursa = require('ursa'),
+        // keep an eye out for built-in constant time comparison function:
+        // https://github.com/joyent/node/issues/8560
+        buffer_equal = require('buffer-equal-constant-time'),
         workaround = process.version.lastIndexOf('v0.8', 0) === 0;
 &nbsp;
     Crypt.parse_key = function (key, cb)
@@ -3227,9 +3262,8 @@ var SlowCrypt;
             {
                 jdata = ddata.slice(SHA256_SIZE);
 &nbsp;
-                <span class="missing-if-branch" title="if path not taken"" >I</span>if (crypto.createHash('sha256')
-                        .update(jdata)
-                        .digest('base64') !== ddata.toString('base64', 0, SHA256_SIZE))
+                <span class="missing-if-branch" title="if path not taken"" >I</span>if (!buffer_equal(crypto.createHash('sha256').update(jdata).digest(),
+                                  ddata.slice(0, SHA256_SIZE)))
                 {
 <span class="cstat-no" title="statement not covered" >                    f.call(this, 'digest mismatch');</span>
 <span class="cstat-no" title="statement not covered" >                    return;</span>
@@ -3320,9 +3354,9 @@ var SlowCrypt;
             }
             else
             {
-                match = crypto.createHmac('sha256', this.key.key || this.key)
-                        .update(ddata)
-                        .digest('base64') === data.signature;
+                match = buffer_equal(crypto.createHmac('sha256', this.key.key || this.key)
+                                         .update(ddata).digest(),
+                                     new Buffer(data.signature, 'base64'));
             }
 &nbsp;
             if (match)
@@ -3375,6 +3409,20 @@ var get_char_codes = function(s)
     }
 &nbsp;
     return r;
+};
+&nbsp;
+// from https://github.com/goinstant/buffer-equal-constant-time/blob/master/index.js
+var const_time_equal = function (s1, s2)
+{
+    "use strict";
+    var i, c = 0;
+    for (i = 0; i &lt; s1.length; i += 1)
+    {
+        /*jslint bitwise: true */
+        c |= s1.charCodeAt(i) ^ s2.charCodeAt(i); // XOR
+        /*jslint bitwise: false */
+    }
+   return c === 0;
 };
 &nbsp;
 SlowCrypt.parse_key = function (key, cb)
@@ -3613,7 +3661,7 @@ SlowCrypt.prototype.decrypt = function (data, f)
         {
             jdata = ddata.substr(SHA256_SIZE);
 &nbsp;
-            if (rstr_sha256(jdata) !== ddata.substr(0, SHA256_SIZE))
+            if (!const_time_equal(rstr_sha256(jdata), ddata.substr(0, SHA256_SIZE)))
             {
                 f.call(this, 'digest mismatch');
                 return;
@@ -3704,9 +3752,9 @@ SlowCrypt.prototype.verify = function (data, f)
         }
         else
         {
-            match = window.btoa(rstr_hmac_sha256(String.fromCharCode.apply(
-                        String, this.key.key || this.key), ddata)) ===
-                    data.signature;
+            match = const_time_equal(window.btoa(rstr_hmac_sha256(String.fromCharCode.apply(
+                                         String, this.key.key || this.key), ddata)),
+                                     data.signature);
         }
 &nbsp;
         if (match)
@@ -3738,7 +3786,7 @@ SlowCrypt.prototype.verify = function (data, f)
 
 </div>
 <div class="footer">
-    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Sat May 24 2014 07:28:59 GMT+0100 (BST)</div>
+    <div class="meta">Generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Wed Jan 14 2015 09:53:40 GMT+0000 (GMT)</div>
 </div>
 
 <script src="../prettify.js"></script>
