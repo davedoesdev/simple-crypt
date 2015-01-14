@@ -3,7 +3,8 @@
 
 var mocha_options = {
     timeout: 10 * 60 * 1000,
-    reporter: 'dot'
+    reporter: 'dot',
+    bail: true
 };
 
 module.exports = function (grunt)
