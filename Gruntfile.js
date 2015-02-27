@@ -12,9 +12,11 @@ module.exports = function (grunt)
     grunt.initConfig(
     {
         jslint: {
-            files: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ],
-            directives: {
-                white: true
+            all: {
+                src: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ],
+                directives: {
+                    white: true
+                }
             }
         },
 
@@ -134,7 +136,7 @@ module.exports = function (grunt)
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-env');
 
-    grunt.registerTask('lint', 'jslint');
+    grunt.registerTask('lint', 'jslint:all');
     grunt.registerTask('test', ['exec:start_phantomjs',
                                 'sleep:10000',
                                 'usetheforce_on',

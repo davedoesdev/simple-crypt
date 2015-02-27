@@ -203,19 +203,19 @@ exports.read_hmac_vectors = function (cb)
 
         cb(null, function (f, cb)
         {
-            var tasks = [], key, msg, mac;
+            var tasks = [], key2, msg2, mac2;
 
-            for (key in test_vectors)
+            for (key2 in test_vectors)
             {
-                for (msg in test_vectors[key])
+                for (msg2 in test_vectors[key2])
                 {
-                    mac = test_vectors[key][msg];
+                    mac2 = test_vectors[key2][msg2];
 
                     tasks.push(
                     {
-                        key: new Buffer(key, 'hex'),
-                        msg: new Buffer(msg, 'hex'),
-                        mac: new Buffer(mac, 'hex')
+                        key: new Buffer(key2, 'hex'),
+                        msg: new Buffer(msg2, 'hex'),
+                        mac: new Buffer(mac2, 'hex')
                     });
                 }
             }
