@@ -1,7 +1,7 @@
 {
   "name": "simple-crypt",
   "description": "Simple and easy-to-use encryption and signing module",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "homepage": "https://github.com/davedoesdev/simple-crypt",
   "author": {
     "name": "David Halls",
@@ -40,25 +40,25 @@
     "pbkdf2"
   ],
   "dependencies": {
-    "ursa": "git://github.com/davedoesdev/ursa.git"
+    "ursa": "~0.8.3"
   },
   "devDependencies": {
-    "grunt": "~0.4.1",
-    "grunt-cli": "~0.1.9",
-    "grunt-jslint": "~0.2.6",
-    "grunt-cafe-mocha": "~0.1.5",
+    "grunt": "~0.4.5",
+    "grunt-cli": "~0.1.13",
+    "grunt-jslint": "~1.1.12",
+    "grunt-cafe-mocha": "~0.1.13",
     "grunt-apidox": "~0.1.4",
-    "chai": "~1.6.1",
-    "istanbul": "~0.1.37",
-    "grunt-exec": "~0.4.2",
-    "coveralls": "~2.0.16",
-    "wd": "~0.2.5",
-    "byline": "~3.1.2",
-    "async": "~0.2.9",
-    "grunt-contrib-concat": "~0.3.0",
-    "grunt-env": "~0.4.0",
+    "chai": "~2.1.0",
+    "istanbul": "~0.3.6",
+    "grunt-exec": "~0.4.6",
+    "coveralls": "~2.11.2",
+    "wd": "~0.3.11",
+    "byline": "~4.2.1",
+    "async": "~0.9.0",
+    "grunt-contrib-concat": "~0.5.1",
+    "grunt-env": "~0.4.4",
     "b": "git://github.com/davedoesdev/b.git",
-    "readable-stream": "~1.1.9",
+    "readable-stream": "~1.1.0",
     "buffer-equal-constant-time": "^1.0.1"
   }
 }
