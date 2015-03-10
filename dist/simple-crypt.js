@@ -708,7 +708,7 @@ if (typeof require === 'function')
 
             if (this.key.hashAndSign)
             {
-                signature = this.key.hashAndSign('sha256', jdata, null, 'base64', ursa.RSA_PKCS1_PSS_PADDING);
+                signature = this.key.hashAndSign('sha256', jdata, null, 'base64', true);
             }
             else if (!this.key.encrypt)
             {
@@ -761,7 +761,7 @@ if (typeof require === 'function')
                             data.data,
                             data.signature,
                             'base64',
-                            ursa.RSA_PKCS1_PSS_PADDING);
+                            true);
             }
             else
             {
@@ -826,6 +826,10 @@ var get_char_codes = function(s)
 var const_time_equal = function (s1, s2)
 {
     "use strict";
+    if (s1.length !== s2.length)
+    {
+        return false;
+    }
     var i, c = 0;
     for (i = 0; i < s1.length; i += 1)
     {
@@ -833,7 +837,7 @@ var const_time_equal = function (s1, s2)
         c |= s1.charCodeAt(i) ^ s2.charCodeAt(i); // XOR
         /*jslint bitwise: false */
     }
-   return c === 0;
+    return c === 0;
 };
 
 SlowCrypt.parse_key = function (key, cb)
