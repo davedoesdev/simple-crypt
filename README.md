@@ -267,7 +267,7 @@ grunt lint
 grunt coverage
 ```
 
-[Instanbul](http://gotwarlost.github.io/istanbul/) results are available [here](http://githubraw.herokuapp.com/davedoesdev/simple-crypt/master/coverage/lcov-report/index.html).
+[Instanbul](http://gotwarlost.github.io/istanbul/) results are available [here](http://rawgit.davedoesdev.com/davedoesdev/simple-crypt/master/coverage/lcov-report/index.html).
 
 Coveralls page is [here](https://coveralls.io/r/davedoesdev/simple-crypt).
 
@@ -352,9 +352,7 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String | Buffer | Object} [key]` Optional key to use for operations using this object.
-
-
+- `{String | Buffer | Object} [key]` Optional key to use for operations using this object. 
   - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key.
 
   - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
@@ -373,20 +371,14 @@ slow|3,130|3,129,778|801
 
     - [HMAC-based Extract-and-Expand Key Derivation Function](http://tools.ietf.org/html/rfc5869)
 
-
-- `{Object} [options]` Optional settings:
-
-
+- `{Object} [options]` Optional settings: 
   - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
 
   - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
 
   - `{Boolean} pad` Whether to automatically pad encrypted data (using PKCS#7) to a multiple of the AES block size (16 bytes). Default is `true`.
 
-
-- `{Function} [cb]` Optional function called with the `Crypt` object. It's passed the following arguments:
-
-
+- `{Function} [cb]` Optional function called with the `Crypt` object. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Crypt} crypt` The `Crypt` object. `key` (above) is parsed using [parse_key](#cryptparse_keykey-cb) and is available using [get_key](#cryptprototypeget_key).
@@ -414,13 +406,8 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt.make](#cryptmakekey-options-cb).
-
-
-
-- `{Function} cb` Function called with the parsed key. It's passed the following arguments:
-
-
+- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt.make](#cryptmakekey-options-cb). 
+- `{Function} cb` Function called with the parsed key. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is received. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is received:
@@ -449,23 +436,15 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object | Buffer | String} data` The data to be encrypted.
-
-
+- `{Object | Buffer | String} data` The data to be encrypted. 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
   - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is prepended to the data before it's encrypted.
 
   - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be padded to a multiple of 16 bytes.
 
-
-- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created.
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
   - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission. It has the following properties:
 
@@ -484,19 +463,14 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
-
-
+- `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance. 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
 
   - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
 
   - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the decrypted data is expected to be padded to a multiple of 16 bytes and will be unpadded automatically.
 
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object|Buffer|String} data` The decrypted data.
@@ -509,15 +483,10 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object | Buffer | String} data` The data to be signed.
-
-
+- `{Object | Buffer | String} data` The data to be signed. 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
   - `{Object} result` Result of signing the data. Typically you would JSON serialize this for transmission. It has the following properties:
 
@@ -535,15 +504,10 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
+- `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance. 
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a  `Buffer` (on Node.js) or binary-encoded string.
 
-
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object|Buffer|String} data` The verified data.
@@ -556,25 +520,11 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String} signing_key` Key to use for signing the data.
-
-
-
-- `{String} encryption_key` Key to use for encrypting the data and signature.
-
-
-
-- `{Object | Buffer | String} data` The data to be signed and encrypted.
-
-
-
-- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for encryption. If not supplied, a random one is created.
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{String} signing_key` Key to use for signing the data. 
+- `{String} encryption_key` Key to use for encrypting the data and signature. 
+- `{Object | Buffer | String} data` The data to be signed and encrypted. 
+- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for encryption. If not supplied, a random one is created. 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
   - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprototypesigndata-cb).
 
@@ -586,21 +536,10 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String} decryption_key` Key to use for decrypting the data and signature.
-
-
-
-- `{String} verifying_key` Key to use for verifying the signature.
-
-
-
-- `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb).
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{String} decryption_key` Key to use for decrypting the data and signature. 
+- `{String} verifying_key` Key to use for verifying the signature. 
+- `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb). 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object|Buffer|String} data` The decrypted and verified data.
@@ -613,17 +552,9 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Boolean} encrypt` Whether to encrypt the data.
-
-
-
-- `{Object | Buffer | String} data` The data to encrypt.
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Boolean} encrypt` Whether to encrypt the data. 
+- `{Object | Buffer | String} data` The data to encrypt. 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object} result` Result object with the following properties:
@@ -634,10 +565,7 @@ slow|3,130|3,129,778|801
 
     - `{Object} [key_data]` If the data was encrypted and `get_key` was called (see below) then this is the key data received from `get_key`.
 
-
-- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
-
-
+- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
   - The arguments to `maybe_encrypt` that follow `get_key` (if any).
 
   - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
@@ -658,21 +586,13 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key).
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
-  - `{Object} err` If an Error occurred then details of the error, otherwise `null`.
+- `{Object} data` A result object received from [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key). 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object|Buffer|String} data` If the data was encrypted then the decrypted data otherwise the data.
 
-
-- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
-
-
+- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
   - The arguments to `maybe_decrypt` that follow `get_key` (if any).
 
   - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
@@ -691,17 +611,9 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Boolean} sign` Whether to sign the data.
-
-
-
-- `{Object | Buffer | String} data` The data to sign.
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
+- `{Boolean} sign` Whether to sign the data. 
+- `{Object | Buffer | String} data` The data to sign. 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object} result` Result object with the following properties:
@@ -712,10 +624,7 @@ slow|3,130|3,129,778|801
 
     - `{Object} [key_data]` If the data was signed and `get_key` was called (see below) then this is the key data received from `get_key`.
 
-
-- `{Function} [get_key]` Optional function to call in order to get the signing key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
-
-
+- `{Function} [get_key]` Optional function to call in order to get the signing key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
   - The arguments to `maybe_sign` that follow `get_key` (if any).
 
   - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
@@ -734,21 +643,13 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key).
-
-
-
-- `{Function} cb` Function called with the result. It's passed the following arguments:
-
-
-  - `{Object} err` If an Error occurred then details of the error, otherwise `null`.
+- `{Object} data` A result object received from [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key). 
+- `{Function} cb` Function called with the result. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
   - `{Object|Buffer|String} data` If the data was signed then the verified data otherwise the data.
 
-
-- `{Function} [get_key]` Optional function to call in order to get the verifying key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
-
-
+- `{Function} [get_key]` Optional function to call in order to get the verifying key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
   - The arguments to `maybe_verify` that follow `get_key` (if any).
 
   - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
