@@ -3910,28 +3910,32 @@ function oaep_mgf1_arr(seed, len, hash)
     return mask;
 }
 
-var SHA1_SIZE = 20;
-
 // PKCS#1 (OAEP) pad input string s to n bytes, and return a bigint
-function oaep_pad(s, n, hash)
+function oaep_pad(s, n, hash, hashLen)
 {
-    if (s.length + 2 * SHA1_SIZE + 2 > n)
+    if (!hash)
+    {
+        hash = rstr_sha1;
+        hashLen = 20;
+    }
+
+    if (s.length + 2 * hashLen + 2 > n)
     {
         throw "Message too long for RSA";
     }
 
     var PS = '', i;
 
-    for (i = 0; i < n - s.length - 2 * SHA1_SIZE - 2; i += 1)
+    for (i = 0; i < n - s.length - 2 * hashLen - 2; i += 1)
     {
         PS += '\x00';
     }
 
-    var DB = rstr_sha1('') + PS + '\x01' + s;
-    var seed = new Array(SHA1_SIZE);
+    var DB = hash('') + PS + '\x01' + s;
+    var seed = new Array(hashLen);
     new SecureRandom().nextBytes(seed);
     
-    var dbMask = oaep_mgf1_arr(seed, DB.length, hash || rstr_sha1);
+    var dbMask = oaep_mgf1_arr(seed, DB.length, hash);
     var maskedDB = [];
 
     for (i = 0; i < DB.length; i += 1)
@@ -3939,7 +3943,7 @@ function oaep_pad(s, n, hash)
         maskedDB[i] = DB.charCodeAt(i) ^ dbMask.charCodeAt(i);
     }
 
-    var seedMask = oaep_mgf1_arr(maskedDB, seed.length, rstr_sha1);
+    var seedMask = oaep_mgf1_arr(maskedDB, seed.length, hash);
     var maskedSeed = [0];
 
     for (i = 0; i < seed.length; i += 1)
@@ -3994,8 +3998,8 @@ function RSAEncrypt(text) {
 }
 
 // Return the PKCS#1 OAEP RSA encryption of "text" as an even-length hex string
-function RSAEncryptOAEP(text, hash) {
-  var m = oaep_pad(text, (this.n.bitLength()+7)>>3, hash);
+function RSAEncryptOAEP(text, hash, hashLen) {
+  var m = oaep_pad(text, (this.n.bitLength()+7)>>3, hash, hashLen);
   if(m == null) return null;
   var c = this.doPublic(m);
   if(c == null) return null;
@@ -4072,11 +4076,15 @@ function oaep_mgf1_str(seed, len, hash)
     return mask;
 }
 
-var SHA1_SIZE = 20;
-
 // Undo PKCS#1 (OAEP) padding and, if valid, return the plaintext
-function oaep_unpad(d, n, hash)
+function oaep_unpad(d, n, hash, hashLen)
 {
+    if (!hash)
+    {
+        hash = rstr_sha1;
+        hashLen = 20;
+    }
+
     d = d.toByteArray();
 
     var i;
@@ -4093,15 +4101,15 @@ function oaep_unpad(d, n, hash)
 
     d = String.fromCharCode.apply(String, d);
 
-    if (d.length < 2 * SHA1_SIZE + 2)
+    if (d.length < 2 * hashLen + 2)
     {
         throw "Cipher too short";
     }
 
-    var maskedSeed = d.substr(1, SHA1_SIZE)
-    var maskedDB = d.substr(SHA1_SIZE + 1);
+    var maskedSeed = d.substr(1, hashLen)
+    var maskedDB = d.substr(hashLen + 1);
 
-    var seedMask = oaep_mgf1_str(maskedDB, SHA1_SIZE, hash || rstr_sha1);
+    var seedMask = oaep_mgf1_str(maskedDB, hashLen, hash);
     var seed = [], i;
 
     for (i = 0; i < maskedSeed.length; i += 1)
@@ -4110,7 +4118,7 @@ function oaep_unpad(d, n, hash)
     }
 
     var dbMask = oaep_mgf1_str(String.fromCharCode.apply(String, seed),
-                           d.length - SHA1_SIZE, rstr_sha1);
+                           d.length - hashLen, hash);
 
     var DB = [];
 
@@ -4121,12 +4129,12 @@ function oaep_unpad(d, n, hash)
 
     DB = String.fromCharCode.apply(String, DB);
 
-    if (DB.substr(0, SHA1_SIZE) !== rstr_sha1(''))
+    if (DB.substr(0, hashLen) !== hash(''))
     {
         throw "Hash mismatch";
     }
 
-    DB = DB.substr(SHA1_SIZE);
+    DB = DB.substr(hashLen);
 
     var first_one = DB.indexOf('\x01');
     var last_zero = (first_one != -1) ? DB.substr(0, first_one).lastIndexOf('\x00') : -1;
@@ -4243,11 +4251,11 @@ function RSADecrypt(ctext) {
 
 // Return the PKCS#1 OAEP RSA decryption of "ctext".
 // "ctext" is an even-length hex string and the output is a plain string.
-function RSADecryptOAEP(ctext, hash) {
+function RSADecryptOAEP(ctext, hash, hashLen) {
   var c = parseBigInt(ctext, 16);
   var m = this.doPrivate(c);
   if(m == null) return null;
-  return oaep_unpad(m, (this.n.bitLength()+7)>>3, hash);
+  return oaep_unpad(m, (this.n.bitLength()+7)>>3, hash, hashLen);
 }
 
 // Return the PKCS#1 RSA decryption of "ctext".
