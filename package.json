@@ -1,7 +1,7 @@
 {
   "name": "simple-crypt",
   "description": "Simple and easy-to-use encryption and signing module",
-  "version": "0.0.11",
+  "version": "0.1.0",
   "homepage": "https://github.com/davedoesdev/simple-crypt",
   "author": {
     "name": "David Halls",
@@ -35,7 +35,7 @@
     "pbkdf2"
   ],
   "dependencies": {
-    "ursa": "~0.8.5"
+    "ursa": "~0.9.1"
   },
   "devDependencies": {
     "grunt": "~0.4.5",
