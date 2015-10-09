@@ -29,9 +29,9 @@ module.exports = function (grunt)
 
             'simple-crypt-deps': {
                 dest: 'dist/simple-crypt-deps.js',
-                src: ['slowaes/aes.js',
+                src: ['slowaes/trunk/js/aes.js',
                       'jsrsasign/ext/cryptojs-312-core-fix.js',
-                      'crypto-js/build/components/sha256.js',
+                      'crypto-js/tags/3.1.2/build/components/sha256.js',
                       'pbkdf2.js',
                       'jsrsasign/ext/jsbn.js',
                       'jsrsasign/ext/jsbn2.js',
@@ -124,7 +124,17 @@ module.exports = function (grunt)
             },
 
             install: {
-                cmd: 'git submodule init && git submodule update && svn checkout http://slowaes.googlecode.com/svn/trunk/js/ slowaes && wget -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && svn checkout http://crypto-js.googlecode.com/svn/tags/3.1.2/ crypto-js && hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem && ./patches/patch.sh'
+                cmd: 'git submodule init && ' +
+                     'git submodule update && ' +
+                     'wget -nv -O slowaes.zip https://storage.googleapis.com/google-code-archive-source/v1/code.google.com/slowaes/source-archive.zip && ' +
+                     'unzip -q slowaes.zip && ' +
+                     'rm -f slowaes.zip && ' +
+                     'wget -nv -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && ' +
+                     'wget -nv -O crypto-js.zip https://storage.googleapis.com/google-code-archive-source/v1/code.google.com/crypto-js/source-archive.zip && ' +
+                     'unzip -q crypto-js.zip && ' +
+                     'rm -f crypto-js.zip && ' +
+                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem && ' +
+                     './patches/patch.sh'
             }
         }
     });
