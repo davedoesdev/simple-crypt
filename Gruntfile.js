@@ -11,13 +11,8 @@ module.exports = function (grunt)
 {
     grunt.initConfig(
     {
-        jslint: {
-            all: {
-                src: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ],
-                directives: {
-                    white: true
-                }
-            }
+        jshint: {
+            src: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ]
         },
 
         concat: {
@@ -30,8 +25,8 @@ module.exports = function (grunt)
             'simple-crypt-deps': {
                 dest: 'dist/simple-crypt-deps.js',
                 src: ['slowaes/trunk/js/aes.js',
-                      'jsrsasign/ext/cryptojs-312-core-fix.js',
-                      'crypto-js/tags/3.1.2/build/components/sha256.js',
+                      'jsrsasign/ext/cj/cryptojs-312-core-fix.js',
+                      'jsrsasign/ext/cj/sha256.js',
                       'pbkdf2.js',
                       'jsrsasign/ext/jsbn.js',
                       'jsrsasign/ext/jsbn2.js',
@@ -56,11 +51,12 @@ module.exports = function (grunt)
             }
         },
 
-        cafemocha: {
-            all: {
+        mochaTest: {
+            default: {
                 src: 'test/*.js',
                 options: mocha_options
             },
+
             browser: {
                 src: ['test/_common.js', 'test/browser_spec.js'],
                 options: mocha_options
@@ -84,15 +80,19 @@ module.exports = function (grunt)
             }
         },
 
-        exec: {
+        bgShell: {
             'cover-fast': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/fast --report none -x Gruntfile.js ./node_modules/.bin/grunt test',
-                maxBuffer: 10000 * 1024
+                execOpts: {
+                    maxBuffer: 10000 * 1024
+                }
             },
 
             'cover-slow': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/slow --report none -x Gruntfile.js ./node_modules/.bin/grunt test-slow',
-                maxBuffer: 10000 * 1024
+                execOpts: {
+                    maxBuffer: 10000 * 1024
+                }
             },
 
             'check-cover': {
@@ -116,7 +116,8 @@ module.exports = function (grunt)
             },
 
             start_phantomjs: {
-                cmd: 'phantomjs --webdriver=4444 --webdriver-loglevel=ERROR --debug=false &'
+                cmd: './node_modules/.bin/phantomjs --webdriver=4444 --webdriver-loglevel=ERROR --debug=false',
+                bg: true
             },
 
             stop_phantomjs: {
@@ -130,49 +131,45 @@ module.exports = function (grunt)
                      'unzip -q slowaes.zip && ' +
                      'rm -f slowaes.zip && ' +
                      'wget -nv -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && ' +
-                     'wget -nv -O crypto-js.zip https://storage.googleapis.com/google-code-archive-source/v1/code.google.com/crypto-js/source-archive.zip && ' +
-                     'unzip -q crypto-js.zip && ' +
-                     'rm -f crypto-js.zip && ' +
-                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem && ' +
-                     './patches/patch.sh'
+                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem'
             }
         }
     });
 
-    grunt.loadNpmTasks('grunt-jslint');
-    grunt.loadNpmTasks('grunt-cafe-mocha');
+    grunt.loadNpmTasks('grunt-contrib-jshint');
+    grunt.loadNpmTasks('grunt-mocha-test');
     grunt.loadNpmTasks('grunt-apidox');
-    grunt.loadNpmTasks('grunt-exec');
+    grunt.loadNpmTasks('grunt-bg-shell');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-env');
 
-    grunt.registerTask('lint', 'jslint:all');
-    grunt.registerTask('test', ['exec:start_phantomjs',
+    grunt.registerTask('lint', 'jshint');
+    grunt.registerTask('test', ['bgShell:start_phantomjs',
                                 'sleep:10000',
                                 'usetheforce_on',
-                                'cafemocha:all',
-                                'exec:stop_phantomjs',
+                                'mochaTest:default',
+                                'bgShell:stop_phantomjs',
                                 'usetheforce_restore']);
-    grunt.registerTask('test-slow', ['exec:start_phantomjs',
-                                'sleep:10000',
-                                'usetheforce_on',
-                                'env:slow',
-                                'cafemocha:all',
-                                'exec:stop_phantomjs',
-                                'usetheforce_restore']);
-    grunt.registerTask('test-browser', ['exec:start_phantomjs',
-                                'sleep:10000',
-                                'usetheforce_on',
-                                'cafemocha:browser',
-                                'exec:stop_phantomjs',
-                                'usetheforce_restore']);
+    grunt.registerTask('test-slow', ['bgShell:start_phantomjs',
+                                     'sleep:10000',
+                                     'usetheforce_on',
+                                     'env:slow',
+                                     'mochaTest:default',
+                                     'bgShell:stop_phantomjs',
+                                     'usetheforce_restore']);
+    grunt.registerTask('test-browser', ['bgShell:start_phantomjs',
+                                        'sleep:10000',
+                                        'usetheforce_on',
+                                        'mochaTest:browser',
+                                        'bgShell:stop_phantomjs',
+                                        'usetheforce_restore']);
     grunt.registerTask('docs', 'apidox');
-    grunt.registerTask('coverage', ['exec:cover-fast', 'exec:cover-slow', 'exec:check-cover', 'exec:cover-report']);
-    grunt.registerTask('coveralls', 'exec:coveralls');
-    grunt.registerTask('bench', 'exec:bench');
-    grunt.registerTask('bench-gfm', 'exec:bench_gfm');
+    grunt.registerTask('coverage', ['bgShell:cover-fast', 'bgShell:cover-slow', 'bgShell:check-cover', 'bgShell:cover-report']);
+    grunt.registerTask('coveralls', 'bgShell:coveralls');
+    grunt.registerTask('bench', 'bgShell:bench');
+    grunt.registerTask('bench-gfm', 'bgShell:bench_gfm');
     grunt.registerTask('build', ['concat:simple-crypt', 'concat:simple-crypt-deps']);
-    grunt.registerTask('install', 'exec:install');
+    grunt.registerTask('install', 'bgShell:install');
     grunt.registerTask('default', ['lint', 'test']);
 
     grunt.registerTask('sleep', function (ms)

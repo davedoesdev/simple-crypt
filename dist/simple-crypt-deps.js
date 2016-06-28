@@ -4276,12 +4276,12 @@ RSAKey.prototype.decrypt = RSADecrypt;
 RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
 //RSAKey.prototype.b64_decrypt = RSAB64Decrypt;
 
-/*! asn1hex-1.1.5.js (c) 2012-2014 Kenji Urushima | kjur.github.com/jsrsasign/license
+/*! asn1hex-1.1.6.js (c) 2012-2016 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * asn1hex.js - Hexadecimal represented ASN.1 string library
  *
- * Copyright (c) 2010-2014 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2010-2016 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
  * http://kjur.github.com/jsrsasign/license/
@@ -4294,7 +4294,7 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * @fileOverview
  * @name asn1hex-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version asn1hex 1.1.5 (2014-May-25)
+ * @version asn1hex 1.1.6 (2015-Jun-11)
  * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
 
@@ -4316,6 +4316,42 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * @name ASN1HEX
  * @class ASN.1 DER encoded hexadecimal string utility class
  * @since jsrsasign 1.1
+ * @description
+ * This class provides a parser for hexadecimal string of
+ * DER encoded ASN.1 binary data.
+ * Here are major methods of this class.
+ * <ul>
+ * <li><b>ACCESS BY POSITION</b>
+ *   <ul>
+ *   <li>{@link ASN1HEX.getHexOfTLV_AtObj} - get ASN.1 TLV at specified position</li>
+ *   <li>{@link ASN1HEX.getHexOfV_AtObj} - get ASN.1 V at specified position</li>
+ *   <li>{@link ASN1HEX.getHexOfL_AtObj} - get hexadecimal ASN.1 L at specified position</li>
+ *   <li>{@link ASN1HEX.getIntOfL_AtObj} - get integer ASN.1 L at specified position</li>
+ *   <li>{@link ASN1HEX.getStartPosOfV_AtObj} - get ASN.1 V position from its ASN.1 TLV position</li>
+ *   </ul>
+ * </li>
+ * <li><b>ACCESS FOR CHILD ITEM</b>
+ *   <ul>
+ *   <li>{@link ASN1HEX.getNthChildIndex_AtObj} - get nth child index at specified position</li>
+ *   <li>{@link ASN1HEX.getPosArrayOfChildren_AtObj} - get indexes of children</li>
+ *   <li>{@link ASN1HEX.getPosOfNextSibling_AtObj} - get position of next sibling</li>
+ *   </ul>
+ * </li>
+ * <li><b>ACCESS NESTED ASN.1 STRUCTURE</b>
+ *   <ul>
+ *   <li>{@link ASN1HEX.getDecendantHexTLVByNthList} - get ASN.1 TLV at specified list index</li>
+ *   <li>{@link ASN1HEX.getDecendantHexVByNthList} - get ASN.1 V at specified list index</li>
+ *   <li>{@link ASN1HEX.getDecendantIndexByNthList} - get index at specified list index</li>
+ *   </ul>
+ * </li>
+ * <li><b>UTILITIES</b>
+ *   <ul>
+ *   <li>{@link ASN1HEX.dump} - dump ASN.1 structure</li>
+ *   <li>{@link ASN1HEX.isASN1HEX} - check whether ASN.1 hexadecimal string or not</li>
+ *   <li>{@link ASN1HEX.hextooidstr} - convert hexadecimal string of OID to dotted integer list</li>
+ *   </ul>
+ * </li>
+ * </ul>
  */
 var ASN1HEX = new function() {
     /**
@@ -4615,15 +4651,245 @@ ASN1HEX.hextooidstr = function(hex) {
     return s;
 };
 
+/**
+ * get string of simple ASN.1 dump from hexadecimal ASN.1 data
+ * @name dump
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} hex hexadecmal string of ASN.1 data
+ * @param {Array} associative array of flags for dump (OPTION)
+ * @param {Number} idx string index for starting dump (OPTION)
+ * @param {String} indent string (OPTION)
+ * @return {String} string of simple ASN.1 dump
+ * @since jsrsasign 4.8.3 asn1hex 1.1.6
+ * @description
+ * This method will get an ASN.1 dump from
+ * hexadecmal string of ASN.1 DER encoded data.
+ * Here are features:
+ * <ul>
+ * <li>ommit long hexadecimal string</li>
+ * <li>dump encapsulated OCTET STRING (good for X.509v3 extensions)</li>
+ * <li>structured/primitive context specific tag support (i.e. [0], [3] ...)</li>
+ * <li>automatic decode for implicit primitive context specific tag 
+ * (good for X.509v3 extension value)
+ *   <ul>
+ *   <li>if hex starts '68747470'(i.e. http) it is decoded as utf8 encoded string.</li>
+ *   <li>if it is in 'subjectAltName' extension value and is '[2]'(dNSName) tag
+ *   value will be encoded as utf8 string</li>
+ *   <li>otherwise it shows as hexadecimal string</li>
+ *   </ul>
+ * </li>
+ * </ul>
+ * @example
+ * // ASN.1 INTEGER
+ * ASN1HEX.dump('0203012345')
+ * &darr;
+ * INTEGER 012345
+ *
+ * // ASN.1 Object Identifier
+ * ASN1HEX.dump('06052b0e03021a')
+ * &darr;
+ * ObjectIdentifier sha1 (1 3 14 3 2 26)
+ *
+ * // ASN.1 SEQUENCE
+ * ASN1HEX.dump('3006020101020102')
+ * &darr;
+ * SEQUENCE
+ *   INTEGER 01
+ *   INTEGER 02
+ *
+ * // ASN.1 DUMP FOR X.509 CERTIFICATE
+ * ASN1HEX.dump(X509.pemToHex(certPEM))
+ * &darr;
+ * SEQUENCE
+ *   SEQUENCE
+ *     [0]
+ *       INTEGER 02
+ *     INTEGER 0c009310d206dbe337553580118ddc87
+ *     SEQUENCE
+ *       ObjectIdentifier SHA256withRSA (1 2 840 113549 1 1 11)
+ *       NULL
+ *     SEQUENCE
+ *       SET
+ *         SEQUENCE
+ *           ObjectIdentifier countryName (2 5 4 6)
+ *           PrintableString 'US'
+ *             :
+ */
+ASN1HEX.dump = function(hex, flags, idx, indent) {
+    var _skipLongHex = function(hex, limitNumOctet) {
+	if (hex.length <= limitNumOctet * 2) {
+	    return hex;
+	} else {
+	    var s = hex.substr(0, limitNumOctet) + 
+		    "..(total " + hex.length / 2 + "bytes).." +
+		    hex.substr(hex.length - limitNumOctet, limitNumOctet);
+	    return s;
+	};
+    };
 
-/*! base64x-1.1.3 (c) 2012-2014 Kenji Urushima | kjur.github.com/jsjws/license
+    if (flags === undefined) flags = { "ommit_long_octet": 32 };
+    if (idx === undefined) idx = 0;
+    if (indent === undefined) indent = "";
+    var skipLongHex = flags.ommit_long_octet;
+
+    if (hex.substr(idx, 2) == "01") {
+	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	if (v == "00") {
+	    return indent + "BOOLEAN FALSE\n";
+	} else {
+	    return indent + "BOOLEAN TRUE\n";
+	}
+    }
+    if (hex.substr(idx, 2) == "02") {
+	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	return indent + "INTEGER " + _skipLongHex(v, skipLongHex) + "\n";
+    }
+    if (hex.substr(idx, 2) == "03") {
+	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	return indent + "BITSTRING " + _skipLongHex(v, skipLongHex) + "\n";
+    }
+    if (hex.substr(idx, 2) == "04") {
+	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	if (ASN1HEX.isASN1HEX(v)) {
+	    var s = indent + "OCTETSTRING, encapsulates\n";
+	    s = s + ASN1HEX.dump(v, flags, 0, indent + "  ");
+	    return s;
+	} else {
+	    return indent + "OCTETSTRING " + _skipLongHex(v, skipLongHex) + "\n";
+	}
+    }
+    if (hex.substr(idx, 2) == "05") {
+	return indent + "NULL\n";
+    }
+    if (hex.substr(idx, 2) == "06") {
+	var hV = ASN1HEX.getHexOfV_AtObj(hex, idx);
+        var oidDot = KJUR.asn1.ASN1Util.oidHexToInt(hV);
+        var oidName = KJUR.asn1.x509.OID.oid2name(oidDot);
+	var oidSpc = oidDot.replace(/\./g, ' ');
+        if (oidName != '') {
+  	    return indent + "ObjectIdentifier " + oidName + " (" + oidSpc + ")\n";
+	} else {
+  	    return indent + "ObjectIdentifier (" + oidSpc + ")\n";
+	}
+    }
+    if (hex.substr(idx, 2) == "0c") {
+	return indent + "UTF8String '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+    }
+    if (hex.substr(idx, 2) == "13") {
+	return indent + "PrintableString '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+    }
+    if (hex.substr(idx, 2) == "14") {
+	return indent + "TeletexString '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+    }
+    if (hex.substr(idx, 2) == "16") {
+	return indent + "IA5String '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+    }
+    if (hex.substr(idx, 2) == "17") {
+	return indent + "UTCTime " + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "\n";
+    }
+    if (hex.substr(idx, 2) == "18") {
+	return indent + "GeneralizedTime " + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "\n";
+    }
+    if (hex.substr(idx, 2) == "30") {
+	if (hex.substr(idx, 4) == "3000") {
+	    return indent + "SEQUENCE {}\n";
+	}
+
+	var s = indent + "SEQUENCE\n";
+	var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+
+	var flagsTemp = flags;
+	
+	if ((aIdx.length == 2 || aIdx.length == 3) &&
+	    hex.substr(aIdx[0], 2) == "06" &&
+	    hex.substr(aIdx[aIdx.length - 1], 2) == "04") { // supposed X.509v3 extension
+	    var oidHex = ASN1HEX.getHexOfV_AtObj(hex, aIdx[0]);
+	    var oidDot = KJUR.asn1.ASN1Util.oidHexToInt(oidHex);
+	    var oidName = KJUR.asn1.x509.OID.oid2name(oidDot);
+
+	    var flagsClone = JSON.parse(JSON.stringify(flags));
+	    flagsClone.x509ExtName = oidName;
+	    flagsTemp = flagsClone;
+	}
+	
+	for (var i = 0; i < aIdx.length; i++) {
+	    s = s + ASN1HEX.dump(hex, flagsTemp, aIdx[i], indent + "  ");
+	}
+	return s;
+    }
+    if (hex.substr(idx, 2) == "31") {
+	var s = indent + "SET\n";
+	var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+	for (var i = 0; i < aIdx.length; i++) {
+	    s = s + ASN1HEX.dump(hex, flags, aIdx[i], indent + "  ");
+	}
+	return s;
+    }
+    var tag = parseInt(hex.substr(idx, 2), 16);
+    if ((tag & 128) != 0) { // context specific 
+	var tagNumber = tag & 31;
+	if ((tag & 32) != 0) { // structured tag
+	    var s = indent + "[" + tagNumber + "]\n";
+	    var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+	    for (var i = 0; i < aIdx.length; i++) {
+		s = s + ASN1HEX.dump(hex, flags, aIdx[i], indent + "  ");
+	    }
+	    return s;
+	} else { // primitive tag
+	    var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	    if (v.substr(0, 8) == "68747470") { // http
+		v = hextoutf8(v);
+	    }
+	    if (flags.x509ExtName === "subjectAltName" &&
+		tagNumber == 2) {
+		v = hextoutf8(v);
+	    }
+	    
+	    var s = indent + "[" + tagNumber + "] " + v + "\n";
+	    return s;
+	}
+    }
+    return indent + "UNKNOWN(" + hex.substr(idx, 2) + ") " + ASN1HEX.getHexOfV_AtObj(hex, idx) + "\n";
+};
+
+/**
+ * check wheather the string is ASN.1 hexadecimal string or not
+ * @name isASN1HEX
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} hex string to check whether it is hexadecmal string for ASN.1 DER or not
+ * @return {Boolean} true if it is hexadecimal string of ASN.1 data otherwise false
+ * @since jsrsasign 4.8.3 asn1hex 1.1.6
+ * @description
+ * This method checks wheather the argument 'hex' is a hexadecimal string of
+ * ASN.1 data or not.
+ * @example
+ * ASN1HEX.isASN1HEX('0203012345') &rarr; true // PROPER ASN.1 INTEGER
+ * ASN1HEX.isASN1HEX('0203012345ff') &rarr; false // TOO LONG VALUE
+ * ASN1HEX.isASN1HEX('02030123') &rarr; false // TOO SHORT VALUE
+ * ASN1HEX.isASN1HEX('fa3bcd') &rarr; false // WRONG FOR ASN.1
+ */
+ASN1HEX.isASN1HEX = function(hex) {
+    if (hex.length % 2 == 1) return false;
+
+    var intL = ASN1HEX.getIntOfL_AtObj(hex, 0);
+    var tV = hex.substr(0, 2);
+    var lV = ASN1HEX.getHexOfL_AtObj(hex, 0);
+    var hVLength = hex.length - tV.length - lV.length;
+    if (hVLength == intL * 2) return true;
+
+    return false;
+};
+
+/*! base64x-1.1.6 (c) 2012-2015 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * base64x.js - Base64url and supplementary functions for Tom Wu's base64.js library
  *
- * version: 1.1.3 (2014 May 25)
+ * version: 1.1.6 (2015-Nov-11)
  *
- * Copyright (c) 2012-2014 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2012-2015 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
  * http://kjur.github.com/jsjws/license/
@@ -4633,6 +4899,15 @@ ASN1HEX.hextooidstr = function(hex) {
  *
  * DEPENDS ON:
  *   - base64.js - Tom Wu's Base64 library
+ */
+
+/**
+ * @fileOverview
+ * @name base64x-1.1.js
+ * @author Kenji Urushima kenji.urushima@gmail.com
+ * @version asn1 1.1.6 (2015-Nov-11)
+ * @since jsrsasign 2.1
+ * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
 
 /**
@@ -4781,8 +5056,13 @@ function b64utob64(s) {
  * convert a hexadecimal string to a Base64URL encoded string.<br/>
  * @param {String} s hexadecimal string
  * @return {String} Base64URL encoded string
+ * @description
+ * convert a hexadecimal string to a Base64URL encoded string.
+ * NOTE: If leading "0" is omitted and odd number length for
+ * hexadecimal leading "0" is automatically added.
  */
 function hextob64u(s) {
+    if (s.length % 2 == 1) s = "0" + s;
     return b64tob64u(hex2b64(s));
 }
 
@@ -5009,12 +5289,69 @@ function newline_toDos(s) {
     return s;
 }
 
-/*! crypto-1.1.5.js (c) 2013 Kenji Urushima | kjur.github.com/jsrsasign/license
+// ==== others ================================
+
+/**
+ * convert string of integer array to hexadecimal string.<br/>
+ * @param {String} s string of integer array
+ * @return {String} hexadecimal string
+ * @since base64x 1.1.6 jsrsasign 5.0.2
+ * @throws "malformed integer array string: *" for wrong input
+ * @description
+ * This function converts a string of JavaScript integer array to
+ * a hexadecimal string. Each integer value shall be in a range 
+ * from 0 to 255 otherwise it raise exception. Input string can
+ * have extra space or newline string so that they will be ignored.
+ * 
+ * @example
+ * intarystrtohex(" [123, 34, 101, 34, 58] ")
+ * -> 7b2265223a (i.e. `{"e":` as string)
+ */
+function intarystrtohex(s) {
+  s = s.replace(/^\s*\[\s*/, '');
+  s = s.replace(/\s*\]\s*$/, '');
+  s = s.replace(/\s*/g, '');
+  try {
+    var hex = s.split(/,/).map(function(element, index, array) {
+      var i = parseInt(element);
+      if (i < 0 || 255 < i) throw "integer not in range 0-255";
+      var hI = ("00" + i.toString(16)).slice(-2);
+      return hI;
+    }).join('');
+    return hex;
+  } catch(ex) {
+    throw "malformed integer array string: " + ex;
+  }
+}
+
+/**
+ * find index of string where two string differs
+ * @param {String} s1 string to compare
+ * @param {String} s2 string to compare
+ * @return {Number} string index of where character differs. Return -1 if same.
+ * @since jsrsasign 4.9.0 base64x 1.1.5
+ * @example
+ * strdiffidx("abcdefg", "abcd4fg") -> 4
+ * strdiffidx("abcdefg", "abcdefg") -> -1
+ * strdiffidx("abcdefg", "abcdef") -> 6
+ * strdiffidx("abcdefgh", "abcdef") -> 6
+ */
+var strdiffidx = function(s1, s2) {
+    var n = s1.length;
+    if (s1.length > s2.length) n = s2.length;
+    for (var i = 0; i < n; i++) {
+	if (s1.charCodeAt(i) != s2.charCodeAt(i)) return i;
+    }
+    if (s1.length != s2.length) return n;
+    return -1; // same
+};
+
+/*! crypto-1.1.8.js (c) 2013-2016 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * crypto.js - Cryptographic Algorithm Provider class
  *
- * Copyright (c) 2013 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2013-2016 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
  * http://kjur.github.com/jsrsasign/license
@@ -5027,7 +5364,7 @@ function newline_toDos(s) {
  * @fileOverview
  * @name crypto-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version 1.1.5 (2013-Oct-06)
+ * @version 1.1.8 (2016-Feb-28)
  * @since jsrsasign 2.2
  * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
@@ -5126,13 +5463,13 @@ KJUR.crypto.Util = new function() {
      * @since crypto 1.1.2
      */
     this.CRYPTOJSMESSAGEDIGESTNAME = {
-	'md5':		'CryptoJS.algo.MD5',
-	'sha1':		'CryptoJS.algo.SHA1',
-	'sha224':	'CryptoJS.algo.SHA224',
-	'sha256':	'CryptoJS.algo.SHA256',
-	'sha384':	'CryptoJS.algo.SHA384',
-	'sha512':	'CryptoJS.algo.SHA512',
-	'ripemd160':	'CryptoJS.algo.RIPEMD160'
+	'md5':		CryptoJS.algo.MD5,
+	'sha1':		CryptoJS.algo.SHA1,
+	'sha224':	CryptoJS.algo.SHA224,
+	'sha256':	CryptoJS.algo.SHA256,
+	'sha384':	CryptoJS.algo.SHA384,
+	'sha512':	CryptoJS.algo.SHA512,
+	'ripemd160':	CryptoJS.algo.RIPEMD160
     };
 
     /**
@@ -5316,16 +5653,11 @@ KJUR.crypto.Util = new function() {
  * </ul>
  * @example
  * // CryptoJS provider sample
- * &lt;script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/core.js"&gt;&lt;/script&gt;
- * &lt;script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/sha1.js"&gt;&lt;/script&gt;
- * &lt;script src="crypto-1.0.js"&gt;&lt;/script&gt;
  * var md = new KJUR.crypto.MessageDigest({alg: "sha1", prov: "cryptojs"});
  * md.updateString('aaa')
  * var mdHex = md.digest()
  *
  * // SJCL(Stanford JavaScript Crypto Library) provider sample
- * &lt;script src="http://bitwiseshiftleft.github.io/sjcl/sjcl.js"&gt;&lt;/script&gt;
- * &lt;script src="crypto-1.0.js"&gt;&lt;/script&gt;
  * var md = new KJUR.crypto.MessageDigest({alg: "sha256", prov: "sjcl"}); // sjcl supports sha256 only
  * md.updateString('aaa')
  * var mdHex = md.digest()
@@ -5356,7 +5688,7 @@ KJUR.crypto.MessageDigest = function(params) {
 	if (':md5:sha1:sha224:sha256:sha384:sha512:ripemd160:'.indexOf(alg) != -1 &&
 	    prov == 'cryptojs') {
 	    try {
-		this.md = eval(KJUR.crypto.Util.CRYPTOJSMESSAGEDIGESTNAME[alg]).create();
+		this.md = KJUR.crypto.Util.CRYPTOJSMESSAGEDIGESTNAME[alg].create();
 	    } catch (ex) {
 		throw "setAlgAndProvider hash alg set fail alg=" + alg + "/" + ex;
 	    }
@@ -5507,10 +5839,23 @@ KJUR.crypto.MessageDigest = function(params) {
  * NOTE: HmacSHA224 and HmacSHA384 issue was fixed since jsrsasign 4.1.4.
  * Please use 'ext/cryptojs-312-core-fix*.js' instead of 'core.js' of original CryptoJS
  * to avoid those issue.
+ * <br/>
+ * NOTE2: Hmac signature bug was fixed in jsrsasign 4.9.0 by providing CryptoJS
+ * bug workaround.
+ * <br/>
+ * Please see {@link KJUR.crypto.Mac.setPassword}, how to provide password
+ * in various ways in detail.
  * @example
- * var mac = new KJUR.crypto.Mac({alg: "HmacSHA1", prov: "cryptojs", "pass": "pass"});
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA1", "pass": "pass"});
  * mac.updateString('aaa')
  * var macHex = md.doFinal()
+ *
+ * // other password representation 
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"hex":  "6161"}});
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"utf8": "aa"}});
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"rstr": "\x61\x61"}});
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"b64":  "Mi02/+...a=="}});
+ * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"b64u": "Mi02_-...a"}});
  */
 KJUR.crypto.Mac = function(params) {
     var mac = null;
@@ -5520,6 +5865,8 @@ KJUR.crypto.Mac = function(params) {
     var algProv = null;
 
     this.setAlgAndProvider = function(alg, prov) {
+	alg = alg.toLowerCase();
+
 	if (alg == null) alg = "hmacsha1";
 
 	alg = alg.toLowerCase();
@@ -5536,7 +5883,7 @@ KJUR.crypto.Mac = function(params) {
 	if (':md5:sha1:sha224:sha256:sha384:sha512:ripemd160:'.indexOf(hashAlg) != -1 &&
 	    prov == 'cryptojs') {
 	    try {
-		var mdObj = eval(KJUR.crypto.Util.CRYPTOJSMESSAGEDIGESTNAME[hashAlg]);
+		var mdObj = KJUR.crypto.Util.CRYPTOJSMESSAGEDIGESTNAME[hashAlg];
 		this.mac = CryptoJS.algo.HMAC.create(mdObj, this.pass);
 	    } catch (ex) {
 		throw "setAlgAndProvider hash alg set fail hashAlg=" + hashAlg + "/" + ex;
@@ -5633,12 +5980,90 @@ KJUR.crypto.Mac = function(params) {
 	throw "digestHex(hex) not supported for this alg/prov: " + this.algProv;
     };
 
-    if (params !== undefined) {
-	if (params['pass'] !== undefined) {
-	    this.pass = params['pass'];
+    /**
+     * set password for Mac
+     * @name setPassword
+     * @memberOf KJUR.crypto.Mac
+     * @function
+     * @param {Object} pass password for Mac
+     * @since crypto 1.1.7 jsrsasign 4.9.0
+     * @description
+     * This method will set password for (H)Mac internally.
+     * Argument 'pass' can be specified as following:
+     * <ul>
+     * <li>even length string of 0..9, a..f or A-F: implicitly specified as hexadecimal string</li>
+     * <li>not above string: implicitly specified as raw string</li>
+     * <li>{rstr: "\x65\x70"}: explicitly specified as raw string</li>
+     * <li>{hex: "6570"}: explicitly specified as hexacedimal string</li>
+     * <li>{utf8: "秘密"}: explicitly specified as UTF8 string</li>
+     * <li>{b64: "Mi78..=="}: explicitly specified as Base64 string</li>
+     * <li>{b64u: "Mi7-_"}: explicitly specified as Base64URL string</li>
+     * </ul>
+     * It is *STRONGLY RECOMMENDED* that explicit representation of password argument
+     * to avoid ambiguity. For example string  "6161" can mean a string "6161" or 
+     * a hexadecimal string of "aa" (i.e. \x61\x61).
+     * @example
+     * mac = KJUR.crypto.Mac({'alg': 'hmacsha256'});
+     * // set password by implicit raw string
+     * mac.setPassword("\x65\x70\xb9\x0b");
+     * mac.setPassword("password");
+     * // set password by implicit hexadecimal string
+     * mac.setPassword("6570b90b");
+     * mac.setPassword("6570B90B");
+     * // set password by explicit raw string
+     * mac.setPassword({"rstr": "\x65\x70\xb9\x0b"});
+     * // set password by explicit hexadecimal string
+     * mac.setPassword({"hex": "6570b90b"});
+     * // set password by explicit utf8 string
+     * mac.setPassword({"utf8": "passwordパスワード");
+     * // set password by explicit Base64 string
+     * mac.setPassword({"b64": "Mb+c3f/=="});
+     * // set password by explicit Base64URL string
+     * mac.setPassword({"b64u": "Mb-c3f_"});
+     */
+    this.setPassword = function(pass) {
+	// internal this.pass shall be CryptoJS DWord Object for CryptoJS bug
+	// work around. CrytoJS HMac password can be passed by
+	// raw string as described in the manual however it doesn't
+	// work properly in some case. If password was passed
+	// by CryptoJS DWord which is not described in the manual
+	// it seems to work. (fixed since crypto 1.1.7)
+
+	if (typeof pass == 'string') {
+	    var hPass = pass;
+	    if (pass.length % 2 == 1 || ! pass.match(/^[0-9A-Fa-f]+$/)) { // raw str
+		hPass = rstrtohex(pass);
+	    }
+	    this.pass = CryptoJS.enc.Hex.parse(hPass);
+	    return;
 	}
-	if (params['alg'] !== undefined) {
-	    this.algName = params['alg'];
+
+	if (typeof pass != 'object')
+	    throw "KJUR.crypto.Mac unsupported password type: " + pass;
+	
+	var hPass = null;
+	if (pass.hex  !== undefined) {
+	    if (pass.hex.length % 2 != 0 || ! pass.hex.match(/^[0-9A-Fa-f]+$/))
+		throw "Mac: wrong hex password: " + pass.hex;
+	    hPass = pass.hex;
+	}
+	if (pass.utf8 !== undefined) hPass = utf8tohex(pass.utf8);
+	if (pass.rstr !== undefined) hPass = rstrtohex(pass.rstr);
+	if (pass.b64  !== undefined) hPass = b64tohex(pass.b64);
+	if (pass.b64u !== undefined) hPass = b64utohex(pass.b64u);
+
+	if (hPass == null)
+	    throw "KJUR.crypto.Mac unsupported password type: " + pass;
+
+	this.pass = CryptoJS.enc.Hex.parse(hPass);
+    };
+
+    if (params !== undefined) {
+	if (params.pass !== undefined) {
+	    this.setPassword(params.pass);
+	}
+	if (params.alg !== undefined) {
+	    this.algName = params.alg;
 	    if (params['prov'] === undefined)
 		this.provName = KJUR.crypto.Util.DEFAULTPROVIDER[this.algName];
 	    this.setAlgAndProvider(this.algName, this.provName);
@@ -5837,6 +6262,7 @@ KJUR.crypto.Signature = function(params) {
 	    this.updateString = function(str) {
 		this.md.updateString(str);
 	    };
+
 	    this.updateHex = function(hex) {
 		this.md.updateHex(hex);
 	    };
@@ -5847,11 +6273,13 @@ KJUR.crypto.Signature = function(params) {
 		    typeof this.eccurvename != "undefined") {
 		    var ec = new KJUR.crypto.ECDSA({'curve': this.eccurvename});
 		    this.hSign = ec.signHex(this.sHashHex, this.ecprvhex);
-		} else if (this.pubkeyAlgName == "rsaandmgf1") {
+		} else if (this.prvKey instanceof RSAKey &&
+		           this.pubkeyAlgName == "rsaandmgf1") {
 		    this.hSign = this.prvKey.signWithMessageHashPSS(this.sHashHex,
 								    this.mdAlgName,
 								    this.pssSaltLen);
-		} else if (this.pubkeyAlgName == "rsa") {
+		} else if (this.prvKey instanceof RSAKey &&
+			   this.pubkeyAlgName == "rsa") {
 		    this.hSign = this.prvKey.signWithMessageHash(this.sHashHex,
 								 this.mdAlgName);
 		} else if (this.prvKey instanceof KJUR.crypto.ECDSA) {
@@ -5877,11 +6305,13 @@ KJUR.crypto.Signature = function(params) {
 		    typeof this.eccurvename != "undefined") {
 		    var ec = new KJUR.crypto.ECDSA({curve: this.eccurvename});
 		    return ec.verifyHex(this.sHashHex, hSigVal, this.ecpubhex);
-		} else if (this.pubkeyAlgName == "rsaandmgf1") {
+		} else if (this.pubKey instanceof RSAKey &&
+			   this.pubkeyAlgName == "rsaandmgf1") {
 		    return this.pubKey.verifyWithMessageHashPSS(this.sHashHex, hSigVal, 
 								this.mdAlgName,
 								this.pssSaltLen);
-		} else if (this.pubkeyAlgName == "rsa") {
+		} else if (this.pubKey instanceof RSAKey &&
+			   this.pubkeyAlgName == "rsa") {
 		    return this.pubKey.verifyWithMessageHash(this.sHashHex, hSigVal);
 		} else if (this.pubKey instanceof KJUR.crypto.ECDSA) {
 		    return this.pubKey.verifyWithMessageHash(this.sHashHex, hSigVal);
