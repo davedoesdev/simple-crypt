@@ -131,7 +131,8 @@ module.exports = function (grunt)
                      'unzip -q slowaes.zip && ' +
                      'rm -f slowaes.zip && ' +
                      'wget -nv -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && ' +
-                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem'
+                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem',
+                fail: true
             }
         }
     });
