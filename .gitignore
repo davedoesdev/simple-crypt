@@ -1,5 +1,3 @@
 node_modules
-crypto-js
 slowaes
 js-rsa-pem
-pbkdf2.js

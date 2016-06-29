@@ -130,7 +130,6 @@ module.exports = function (grunt)
                      'wget -nv -O slowaes.zip https://storage.googleapis.com/google-code-archive-source/v2/code.google.com/slowaes/source-archive.zip && ' +
                      'unzip -q slowaes.zip && ' +
                      'rm -f slowaes.zip && ' +
-                     'wget -nv -O pbkdf2.js http://anandam.name/pbkdf2/pbkdf2.js.txt && ' +
                      'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem',
                 fail: true
             }
