@@ -32,6 +32,8 @@ describe('sign_verify_symmetric', function ()
 
     it('should sign test vector message and produce expected mac', function (callback)
     {
+        var slow = !!process.env.SLOW;
+
         run_tasks(function (task, cb)
         {
             Crypt.make(task.key, vector_helpers.vecopts, function (err, sign)
@@ -45,7 +47,10 @@ describe('sign_verify_symmetric', function ()
                 sign.sign(task.msg, function (err, v)
                 {
                     expr(expect(err, 'error').not.to.exist);
-                    expect(v.signature, 'expected mac').to.equal(task.mac.toString('base64'));
+                    expect(Buffer.isBuffer(v.data)).to.equal(!slow);
+                    expect(Buffer.isBuffer(v.signature)).to.equal(!slow);
+                    expect(v.signature, 'expected mac').to.eql(
+                            slow ? task.mac.toString('binary') : task.mac);
 
                     cb();
                 });
@@ -55,6 +60,8 @@ describe('sign_verify_symmetric', function ()
 
     it('should verify test vector mac', function (callback)
     {
+        var slow = !!process.env.SLOW;
+
         run_tasks(function (task, cb)
         {
             Crypt.make(task.key, vector_helpers.vecopts, function (err, verify)
@@ -67,14 +74,16 @@ describe('sign_verify_symmetric', function ()
                 
                 verify.verify(
                 {
-                    data: task.msg.toString('base64'),
-                    signature: task.mac.toString('base64'),
+                    data: slow ? task.msg.toString('binary') : task.msg,
+                    signature: slow ? task.mac.toString('binary') : task.mac,
                     version: Crypt.get_version()
                 },
                 function (err, v)
                 {
                     expr(expect(err, 'error').not.to.exist);
-                    expect(v.toString('base64'), 'expected msg').to.equal(task.msg.toString('base64'));
+                    expect(Buffer.isBuffer(v)).to.equal(!slow);
+                    expect(v, 'expected msg').to.eql(
+                            slow ? task.msg.toString('binary') : task.msg);
 
                     cb();
                 });

@@ -1023,10 +1023,6 @@ describe('browser', function ()
         {
             in_browser(function (key, iv, plaintext, opts, cb)
             {
-                key = window.atob(key);
-                iv = window.atob(iv);
-                plaintext = window.atob(plaintext);
-
                 Crypt.make(key, opts, function (err, crypt)
                 {
                     if (err)
@@ -1038,13 +1034,13 @@ describe('browser', function ()
                     crypt.encrypt(plaintext, iv, cb);
                 });
             }, 
-            task.key.toString('base64'),
-            task.iv.toString('base64'),
-            task.plaintext.toString('base64'),
+            task.key.toString('binary'),
+            task.iv.toString('binary'),
+            task.plaintext.toString('binary'),
             vector_helpers.vecopts,
             function (v, cb)
             {
-                expect(v.data, 'expected ciphertext').to.equal(task.ciphertext.toString('base64'));
+                expect(v.data, 'expected ciphertext').to.equal(task.ciphertext.toString('binary'));
                 cb();
             },
             cb);
@@ -1057,8 +1053,6 @@ describe('browser', function ()
         {
             in_browser(function (key, iv, ciphertext, opts, cb)
             {
-                key = window.atob(key);
-
                 Crypt.make(key, opts, function (err, decrypt)
                 {
                     if (err)
@@ -1072,25 +1066,16 @@ describe('browser', function ()
                         iv: iv,
                         data: ciphertext,
                         version: Crypt.get_version()
-                    }, function (err, v)
-                    {
-                        if (err)
-                        {
-                            cb(err);
-                            return;
-                        }
-
-                        cb(null, window.btoa(v));
-                    });
+                    }, cb);
                 });
             }, 
-            task.key.toString('base64'),
-            task.iv.toString('base64'),
-            task.ciphertext.toString('base64'),
+            task.key.toString('binary'),
+            task.iv.toString('binary'),
+            task.ciphertext.toString('binary'),
             vector_helpers.vecopts,
             function (v, cb)
             {
-                expect(v, 'expected plaintext').to.equal(task.plaintext.toString('base64'));
+                expect(v, 'expected plaintext').to.equal(task.plaintext.toString('binary'));
                 cb();
             },
             cb);
@@ -1163,9 +1148,6 @@ describe('browser', function ()
         {
             in_browser(function (key, msg, opts, cb)
             {
-                key = window.atob(key);
-                msg = window.atob(msg);
-
                 Crypt.make(key, opts, function (err, sign)
                 {
                     if (err)
@@ -1177,12 +1159,12 @@ describe('browser', function ()
                     sign.sign(msg, cb);
                 });
             },
-            task.key.toString('base64'),
-            task.msg.toString('base64'),
+            task.key.toString('binary'),
+            task.msg.toString('binary'),
             vector_helpers.vecopts,
             function (v, cb)
             {
-                expect(v.signature, 'expected mac').to.equal(task.mac.toString('base64'));
+                expect(v.signature, 'expected mac').to.equal(task.mac.toString('binary'));
                 cb();
             },
             cb);
@@ -1195,7 +1177,7 @@ describe('browser', function ()
         {
             in_browser(function (key, msg, mac, opts, cb)
             {
-                Crypt.make(window.atob(key), opts, function (err, verify)
+                Crypt.make(key, opts, function (err, verify)
                 {
                     if (err)
                     {
@@ -1208,25 +1190,16 @@ describe('browser', function ()
                         data: msg,
                         signature: mac,
                         version: Crypt.get_version()
-                    }, function (err, v)
-                    {
-                        if (err)
-                        {
-                            cb(err);
-                            return;
-                        }
-
-                        cb(null, window.btoa(v));
-                    });
+                    }, cb);
                 });
             },
-            task.key.toString('base64'),
-            task.msg.toString('base64'),
-            task.mac.toString('base64'),
+            task.key.toString('binary'),
+            task.msg.toString('binary'),
+            task.mac.toString('binary'),
             vector_helpers.vecopts,
             function (v, cb)
             {
-                expect(v, 'expected msg').to.equal(task.msg.toString('base64'));
+                expect(v, 'expected msg').to.equal(task.msg.toString('binary'));
                 cb();
             },
             cb);

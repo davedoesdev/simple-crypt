@@ -15,7 +15,7 @@ if (stream.Transform === undefined)
 
 var byline = require('byline');
 
-exports.vecopts = { json: false, check: false, pad: false };
+exports.vecopts = { json: false, check: false, pad: false, base64: false };
 
 exports.read_aes_vectors = function (cb)
 {

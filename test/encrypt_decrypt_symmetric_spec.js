@@ -32,6 +32,8 @@ describe('encrypt_decrypt_symmetric', function ()
 
     it('should encrypt test vector plaintext and produce expected ciphertext', function (callback)
     {
+        var slow = !!process.env.SLOW;
+
         run_tasks(function (task, cb)
         {
             Crypt.make(task.key, vector_helpers.vecopts, function (err, encrypt)
@@ -45,7 +47,12 @@ describe('encrypt_decrypt_symmetric', function ()
                 encrypt.encrypt(task.plaintext, task.iv, function (err, v)
                 {
                     expr(expect(err, 'error').not.to.exist);
-                    expect(v.data, 'expected ciphertext').to.equal(task.ciphertext.toString('base64'));
+                    expect(Buffer.isBuffer(v.iv)).to.equal(true);
+                    expect(Buffer.isBuffer(v.data)).to.equal(!slow);
+                    expect(v.ekey).to.equal(undefined);
+                    expect(v.data, 'expected ciphertext').to.eql(
+                            slow ? task.ciphertext.toString('binary') :
+                                   task.ciphertext);
 
                     cb();
                 });
@@ -55,6 +62,8 @@ describe('encrypt_decrypt_symmetric', function ()
 
     it('should decrypt test vector ciphertext and produce expected plaintext', function (callback)
     {
+        var slow = !!process.env.SLOW;
+
         run_tasks(function (task, cb)
         {
             Crypt.make(task.key, vector_helpers.vecopts, function (err, decrypt)
@@ -67,14 +76,17 @@ describe('encrypt_decrypt_symmetric', function ()
                 
                 decrypt.decrypt(
                 {
-                    iv: task.iv.toString('base64'),
-                    data: task.ciphertext.toString('base64'),
+                    iv: slow ? task.iv.toString('binary') : task.iv,
+                    data: slow ? task.ciphertext.toString('binary') : task.ciphertext,
                     version: Crypt.get_version()
                 },
                 function (err, v)
                 {
                     expr(expect(err, 'error').not.to.exist);
-                    expect(v.toString('base64'), 'expected plaintext').to.equal(task.plaintext.toString('base64'));
+                    expect(Buffer.isBuffer(v)).to.equal(!slow);
+                    expect(v, 'expected plaintext').to.eql(
+                            slow ? task.plaintext.toString('binary') :
+                                   task.plaintext);
 
                     cb();
                 });

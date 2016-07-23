@@ -374,6 +374,8 @@ slow|3,130|3,129,778|801
 - `{Object} [options]` Optional settings: 
   - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
 
+  - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data.
+
   - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
 
   - `{Boolean} pad` Whether to automatically pad encrypted data (using PKCS#7) to a multiple of the AES block size (16 bytes). Default is `true`.
@@ -446,12 +448,13 @@ slow|3,130|3,129,778|801
 - `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission. It has the following properties:
+  - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `iv`, `data`, and `ekey` won't be Base64-encoded. It has the following properties:
 
-    - `{String} iv` Base64-encoded initialisation vector used for the encryption.
-    - `{String} data` Base64-encoded encrypted data. 
+    - `{Buffer|String} iv` Initialisation vector used for the encryption.
 
-    - `{String} ekey` Base64-encoded encrypted AES key (only present when using RSA public key -- see above).
+    - `{Buffer|String} data` Encrypted data. 
+
+    - `{Buffer|String} ekey` Encrypted AES key (only present when using RSA public key -- see above).
 
     - `{Number} version` Internal version number for future compatibility checking.
 
@@ -464,7 +467,9 @@ slow|3,130|3,129,778|801
 **Parameters:**
 
 - `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance. 
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's encrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
+  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's decrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
+
+  - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's decrypted. 
 
   - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
 
@@ -488,11 +493,11 @@ slow|3,130|3,129,778|801
 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of signing the data. Typically you would JSON serialize this for transmission. It has the following properties:
+  - `{Object} result` Result of signing the data. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `data` and `signature` won't be Base64-encoded. It has the following properties:
 
-    - `{String} data` The data that was signed (Base64-encoded).
+    - `{Buffer|String} data` The data that was signed.
 
-    - `{String} signature` Base64-encoded signed hash of the data.
+    - `{Buffer|String} signature` Signed hash of the data.
 
     - `{Number} version` Internal version number for future compatibility checking.
 
@@ -506,6 +511,8 @@ slow|3,130|3,129,778|801
 
 - `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance. 
   - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a  `Buffer` (on Node.js) or binary-encoded string.
+
+  - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's verified.
 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.

@@ -3,7 +3,6 @@
 
 var mocha_options = {
     timeout: 10 * 60 * 1000,
-    reporter: 'dot',
     bail: true
 };
 
@@ -84,14 +83,14 @@ module.exports = function (grunt)
             'cover-fast': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/fast --report none -x Gruntfile.js ./node_modules/.bin/grunt test',
                 execOpts: {
-                    maxBuffer: 10000 * 1024
+                    maxBuffer: 0
                 }
             },
 
             'cover-slow': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/slow --report none -x Gruntfile.js ./node_modules/.bin/grunt test-slow',
                 execOpts: {
-                    maxBuffer: 10000 * 1024
+                    maxBuffer: 0
                 }
             },
 
