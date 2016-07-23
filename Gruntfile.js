@@ -3,6 +3,7 @@
 
 var mocha_options = {
     timeout: 10 * 60 * 1000,
+    reporter: 'dot',
     bail: true
 };
 
