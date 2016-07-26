@@ -483,6 +483,481 @@ Crypt.verify_decrypt_verify = function (decryption_key, verifying_key, data, f)
     });
 };
 
+Crypt.encrypt_stream = function (key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+
+    this.make(key,
+    {
+        base64: false,
+        json: false
+    }, function (err, encrypter)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        var Transform = require('stream').Transform,
+            t = new Transform(),
+            frame = require('frame-stream'),
+            out_s = frame.encode(options),
+            crypto = require('crypto'),
+            prev_hash;
+
+        t._transform = function (chunk, encoding, callback)
+        {
+            var ths = this;
+
+            encrypter.encrypt(Buffer.concat(
+                    prev_hash ? [new Buffer([1]), prev_hash, chunk] :
+                                [new Buffer([0]), chunk]),
+            function (err, ev)
+            {
+                if (err)
+                {
+                    return callback(err);
+                }
+
+                var hash = crypto.createHash('sha256');
+
+                ths.push(ev.iv);
+                hash.update(ev.iv);
+
+                ths.push(ev.data);
+                hash.update(ev.data);
+
+                var buf = new Buffer(4);
+                buf.writeUInt32BE(ev.version, 0, true);
+                ths.push(buf);
+                hash.update(buf);
+
+                buf = Buffer.concat(
+                    ev.ekey ? [new Buffer([1]), ev.ekey] :
+                              [new Buffer([0])]);
+                ths.push(buf);
+                hash.update(buf);
+
+                prev_hash = hash.digest();
+
+                callback();
+            });
+        };
+
+        t.pipe(out_s);
+        s.pipe(t);
+
+        cb(null, out_s);
+    });
+};
+
+Crypt.decrypt_stream = function (key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+ 
+    this.make(key,
+    {
+        base64: false,
+        json: false
+    }, function (err, decrypter)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        var Transform = require('stream').Transform,
+            t = new Transform(),
+            frame = require('frame-stream'),
+            in_s = frame.decode(options),
+            crypto = require('crypto'),
+            hash,
+            prev_hash,
+            state = 0,
+            ev;
+
+        t._transform = function (chunk, encoding, callback)
+        {
+            var err;
+
+            switch (state)
+            {
+                case 0:
+                    hash = crypto.createHash('sha256');
+                    ev = { iv: chunk };
+                    state = 1;
+                    break;
+
+                case 1:
+                    ev.data = chunk;
+                    state = 2;
+                    break;
+
+                case 2:
+                    if (chunk.length !== 4)
+                    {
+                        err = callback(new Error('wrong length'));
+                        break;
+                    }
+                    ev.version = chunk.readUInt32BE(0, true);
+                    state = 3;
+                    break;
+
+                case 3:
+                    if (chunk.length < 1)
+                    {
+                        err = callback(new Error('wrong length'));
+                        break;
+                    }
+                    if (chunk[0] == 1)
+                    {
+                        ev.ekey = chunk.slice(1);
+                    }
+                    state = 4;
+                    break;
+
+                default:
+                    err = new Error('unexpected state');
+                    break;
+            }
+
+            if (err)
+            {
+                state = 0;
+                return callback(err);
+            }
+
+            if (state > 4)
+            {
+                state = 0;
+                return callback(new Error('unexpected state'));
+            }
+
+            hash.update(chunk);
+
+            if (state < 4)
+            {
+                return callback();
+            }
+
+            state = 0;
+
+            decrypter.decrypt(ev, function (err, data)
+            {
+                if (err)
+                {
+                    return callback(err);
+                }
+
+                if (prev_hash)
+                {
+                    if (data[0] !== 1)
+                    {
+                        return callback(new Error('wrong marker'));
+                    }
+
+                    if (!buffer_equal(data.slice(1, 1 + SHA256_SIZE),
+                                      prev_hash))
+                    {
+                        return callback(new Error('wrong order'));
+                    }
+                    
+                    data = data.slice(1 + SHA256_SIZE);
+                }
+                else
+                {
+                    if (data[0] !== 0)
+                    {
+                        return callback(new Error('wrong marker'));
+                    }
+
+                    data = data.slice(1);
+                }
+
+                prev_hash = hash.digest();
+
+                callback(null, data);
+            });
+        };
+
+        in_s.pipe(t);
+        s.pipe(in_s);
+
+        cb(null, t);
+    });
+};
+
+Crypt.sign_stream = function (key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+
+    this.make(key,
+    {
+        base64: false,
+        json: false
+    }, function (err, signer)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        var Transform = require('stream').Transform,
+            t = new Transform(),
+            frame = require('frame-stream'),
+            out_s = frame.encode(options),
+            crypto = require('crypto'),
+            prev_hash;
+
+        t._transform = function (chunk, encoding, callback)
+        {
+            var ths = this;
+
+            signer.sign(Buffer.concat(
+                prev_hash ? [new Buffer([1]), prev_hash, chunk] :
+                            [new Buffer([0]), chunk]),
+            function (err, sv)
+            {
+                if (err)
+                {
+                    return callback(err);
+                }
+
+                var hash = crypto.createHash('sha256');
+
+                ths.push(sv.signature);
+                hash.update(sv.signature);
+
+                ths.push(sv.data);
+                hash.update(sv.data);
+
+                var buf = new Buffer(4);
+                buf.writeUInt32BE(sv.version, 0, true);
+                ths.push(buf);
+                hash.update(buf);
+
+                prev_hash = hash.digest();
+
+                callback();
+            });
+        };
+
+        t.pipe(out_s);
+        s.pipe(t);
+
+        cb(null, out_s);
+    });
+};
+
+Crypt.verify_stream = function (key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+ 
+    this.make(key,
+    {
+        base64: false,
+        json: false
+    }, function (err, verifier)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        var Transform = require('stream').Transform,
+            t = new Transform(),
+            frame = require('frame-stream'),
+            in_s = frame.decode(options),
+            crypto = require('crypto'),
+            hash,
+            prev_hash,
+            state = 0,
+            sv;
+
+        t._transform = function (chunk, encoding, callback)
+        {
+            var err;
+
+            switch (state)
+            {
+                case 0:
+                    hash = crypto.createHash('sha256');
+                    sv = { signature: chunk };
+                    state = 1;
+                    break;
+
+                case 1:
+                    sv.data = chunk;
+                    state = 2;
+                    break;
+
+                case 2:
+                    if (chunk.length !== 4)
+                    {
+                        err = callback(new Error('wrong length'));
+                        break;
+                    }
+                    sv.version = chunk.readUInt32BE(0, true);
+                    state = 3;
+                    break;
+
+                default:
+                    err = new Error('unexpected state');
+                    break;
+            }
+
+            if (err)
+            {
+                state = 0;
+                return callback(err);
+            }
+
+            if (state > 3)
+            {
+                state = 0;
+                return callback(new Error('unexpected state'));
+            }
+
+            hash.update(chunk);
+
+            if (state < 3)
+            {
+                return callback();
+            }
+
+            state = 0;
+
+            verifier.verify(sv, function (err, data)
+            {
+                if (err)
+                {
+                    return callback(err);
+                }
+
+                if (prev_hash)
+                {
+                    if (data[0] !== 1)
+                    {
+                        return callback(new Error('wrong marker'));
+                    }
+
+                    if (!buffer_equal(data.slice(1, 1 + SHA256_SIZE),
+                                      prev_hash))
+                    {
+                        return callback(new Error('wrong order'));
+                    }
+                    
+                    data = data.slice(1 + SHA256_SIZE);
+                }
+                else
+                {
+                    if (data[0] !== 0)
+                    {
+                        return callback(new Error('wrong marker'));
+                    }
+
+                    data = data.slice(1);
+				}
+
+                prev_hash = hash.digest();
+
+                callback(null, data);
+            });
+        };
+
+        in_s.pipe(t);
+        s.pipe(in_s);
+
+        cb(null, t);
+    });
+};
+
+Crypt.sign_encrypt_sign_stream = function (signing_key, encryption_key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+
+    var This = this;
+
+    This.sign_stream(signing_key, s, options, function (err, ss)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        This.encrypt_stream(encryption_key, ss, options, function (err, es)
+        {
+            if (err)
+            {
+                return cb(err);
+            }
+
+            This.sign_stream(signing_key, es, options, cb);
+        });
+    });
+};
+
+Crypt.verify_decrypt_verify_stream = function (decryption_key, verifying_key, s, options, cb)
+{
+    "use strict";
+
+    if (!cb)
+    {
+        cb = options;
+        options = undefined;
+    }
+
+    var This = this;
+
+    This.verify_stream(verifying_key, s, options, function (err, vs)
+    {
+        if (err)
+        {
+            return cb(err);
+        }
+
+        This.decrypt_stream(decryption_key, vs, options, function (err, ds)
+        {
+            if (err)
+            {
+                return cb(err);
+            }
+
+            This.verify_stream(verifying_key, ds, options, cb);
+        });
+    });
+};
+
 var SlowCrypt;
 
 if (typeof require === 'function')
@@ -674,7 +1149,9 @@ if (typeof require === 'function')
             {
                 jdata = ddata.slice(SHA256_SIZE);
 
-                if (!buffer_equal(crypto.createHash('sha256').update(jdata).digest(),
+                if (!buffer_equal(crypto.createHash('sha256')
+                                        .update(jdata)
+                                        .digest(),
                                   ddata.slice(0, SHA256_SIZE)))
                 {
                     f.call(this, 'digest mismatch');
@@ -774,10 +1251,12 @@ if (typeof require === 'function')
             }
             else
             {
-                match = buffer_equal(crypto.createHmac('sha256', this.key.key || this.key)
-                                         .update(ddata).digest(),
-                                     this.encoding ? new Buffer(data.signature, this.encoding) :
-                                                    data.signature);
+                match = buffer_equal(crypto.createHmac('sha256',
+                                                       this.key.key || this.key)
+                                           .update(ddata).digest(),
+                                     this.encoding ? new Buffer(data.signature,
+                                                                this.encoding) :
+                                                     data.signature);
             }
 
             if (match)
@@ -810,6 +1289,12 @@ if (typeof require === 'function')
     SlowCrypt.get_key_size = Crypt.get_key_size;
     SlowCrypt.sign_encrypt_sign = Crypt.sign_encrypt_sign;
     SlowCrypt.verify_decrypt_verify = Crypt.verify_decrypt_verify;
+    SlowCrypt.encrypt_stream = Crypt.encrypt_stream;
+    SlowCrypt.decrypt_stream = Crypt.decrypt_stream;
+    SlowCrypt.sign_stream = Crypt.sign_stream;
+    SlowCrypt.verify_stream = Crypt.verify_stream;
+    SlowCrypt.sign_encrypt_sign_stream = Crypt.sign_encrypt_sign_stream;
+    SlowCrypt.verify_decrypt_verify_stream = Crypt.verify_decrypt_verify_stream;
 
     SlowCrypt.prototype = Object.create(Crypt.prototype);
 }

@@ -83,6 +83,7 @@ module.exports = function (grunt)
         bgShell: {
             'cover-fast': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/fast --report none -x Gruntfile.js ./node_modules/.bin/grunt test',
+                fail: true,
                 execOpts: {
                     maxBuffer: 0
                 }
@@ -90,21 +91,25 @@ module.exports = function (grunt)
 
             'cover-slow': {
                 cmd: './node_modules/.bin/istanbul cover --dir ./coverage/slow --report none -x Gruntfile.js ./node_modules/.bin/grunt test-slow',
+                fail: true,
                 execOpts: {
                     maxBuffer: 0
                 }
             },
 
             'check-cover': {
-                cmd: './node_modules/.bin/istanbul check-coverage --statement 80 --branch 80 --function 80 --line 80'
+                cmd: './node_modules/.bin/istanbul check-coverage --statement 80 --branch 80 --function 80 --line 80',
+                fail: true
             },
 
             'cover-report': {
-                cmd: './node_modules/.bin/istanbul report'
+                cmd: './node_modules/.bin/istanbul report',
+                fail: true
             },
 
             coveralls: {
-                cmd: 'cat coverage/lcov.info | coveralls'
+                cmd: 'cat coverage/lcov.info | coveralls',
+                fail: true
             },
 
             bench: {

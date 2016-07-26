@@ -47,7 +47,7 @@ describe('encrypt_decrypt_symmetric', function ()
                 encrypt.encrypt(task.plaintext, task.iv, function (err, v)
                 {
                     expr(expect(err, 'error').not.to.exist);
-                    expect(Buffer.isBuffer(v.iv)).to.equal(true);
+                    expect(Buffer.isBuffer(v.iv)).to.equal(!slow);
                     expect(Buffer.isBuffer(v.data)).to.equal(!slow);
                     expect(v.ekey).to.equal(undefined);
                     expect(v.data, 'expected ciphertext').to.eql(
