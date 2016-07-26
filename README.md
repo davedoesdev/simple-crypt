@@ -12,6 +12,7 @@ Javascript library for signing and encrypting data.
 - Verification and decryption operations included.
 - Support for deriving signing and encryption key from a password using PBKDF2-SHA1.
 - JSON encoding of data by default.
+- Optional stream API.
 - Unit tests, including NIST test vectors and tests for interoperability between Node.js and browser (using [PhantomJS](http://phantomjs.org/)).
 
 Example:
@@ -245,6 +246,36 @@ Crypt.make('some signing key', { json: false }, function (err, signer)
 });
 ```
 
+### Streaming operation
+
+```javascript
+var s = new require('stream').PassThrough();
+
+Crypt.encrypt_stream('some signing key', s, function (err, enc_s)
+{
+    Crypt.decrypt_stream('some signing key', enc_s, function (err, dec_s)
+    {
+        var v = '';
+
+        dec_s.on('readable', function ()
+        {
+            var data = this.read();
+            if (data)
+            {
+                v += data;
+            }
+        });
+
+        dec_s.on('end', function ()
+        {
+            assert.equal(v, 'hello world');
+        });
+    });
+});
+
+s.end('hello world');
+```
+
 ## Licence
 
 [MIT](LICENCE)
@@ -341,6 +372,14 @@ slow|3,130|3,129,778|801
 - <a name="toc_cryptprototypemaybe_decryptdata-cb-get_key"></a>[Crypt.prototype.maybe_decrypt](#cryptprototypemaybe_decryptdata-cb-get_key)
 - <a name="toc_cryptprototypemaybe_signsign-data-cb-get_key"></a>[Crypt.prototype.maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key)
 - <a name="toc_cryptprototypemaybe_verifydata-cb-get_key"></a>[Crypt.prototype.maybe_verify](#cryptprototypemaybe_verifydata-cb-get_key)
+
+## Stream functions
+- <a name="toc_cryptencrypt_streamkey-s-options-cb"></a>[Crypt.encrypt_stream](#cryptencrypt_streamkey-s-options-cb)
+- <a name="toc_cryptdecrypt_streamkey-s-options-cb"></a>[Crypt.decrypt_stream](#cryptdecrypt_streamkey-s-options-cb)
+- <a name="toc_cryptsign_streamkey-s-options-cb"></a>[Crypt.sign_stream](#cryptsign_streamkey-s-options-cb)
+- <a name="toc_cryptverify_streamkey-s-options-cb"></a>[Crypt.verify_stream](#cryptverify_streamkey-s-options-cb)
+- <a name="toc_cryptsign_encrypt_sign_streamsigning_key-encryption_key-s-options-cb"></a>[Crypt.sign_encrypt_sign_stream](#cryptsign_encrypt_sign_streamsigning_key-encryption_key-s-options-cb)
+- <a name="toc_cryptverify_decrypt_verify_streamdecryption_key-verifying_key-s-options-cb"></a>[Crypt.verify_decrypt_verify_stream](#cryptverify_decrypt_verify_streamdecryption_key-verifying_key-s-options-cb)
 
 -----
 
@@ -527,8 +566,8 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String} signing_key` Key to use for signing the data. 
-- `{String} encryption_key` Key to use for encrypting the data and signature. 
+- `{Buffer | String | Object} signing_key` Key to use for signing the data. 
+- `{Buffer | String | Object} encryption_key` Key to use for encrypting the data and signature. 
 - `{Object | Buffer | String} data` The data to be signed and encrypted. 
 - `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for encryption. If not supplied, a random one is created. 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
@@ -543,8 +582,8 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String} decryption_key` Key to use for decrypting the data and signature. 
-- `{String} verifying_key` Key to use for verifying the signature. 
+- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data and signature. 
+- `{Buffer | String | Object} verifying_key` Key to use for verifying the signature. 
 - `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb). 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
@@ -668,5 +707,103 @@ slow|3,130|3,129,778|801
   - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
+
+## Crypt.encrypt_stream(key, s, [options], cb)
+
+> Encrypt a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} key` Key to use for encryping the data in the stream. 
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to encrypt. 
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
+- `{Function} cb` Function called with the encrypted stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} enc_s` The encrypted data stream. Any encryption errors will be emitted as `error` events on `enc_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.decrypt_stream(key, s, [options], cb)
+
+> Decrypt a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} key` Key to use for decrypting the data in the stream. 
+- `{Readable} s` The encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to decrypt. 
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
+- `{Function} cb` Function called with the decrypted stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} dec_s` The decrypted data stream. Any decryption errors will be emitted as `error` events on `dec_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.sign_stream(key, s, [options], cb)
+
+> Sign a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} key` Key to use for signing the data in the stream. 
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign. 
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
+- `{Function} cb` Function called with the signed stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} sig_s` The signed data stream. Any signing errors will be emitted as `error` events on `sig_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.verify_stream(key, s, [options], cb)
+
+> Verify a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} key` Key to use for verifying the data in the stream. 
+- `{Readable} s` The signed [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify. 
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
+- `{Function} cb` Function called with the verified stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} ver_s` The verified data stream. Any verification errors will be emitted as `error` events on `ver_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.sign_encrypt_sign_stream(signing_key, encryption_key, s, [options], cb)
+
+> Sign then encrypt then sign a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} signing_key` Key to use for signing the data in the stream. 
+- `{Buffer | String | Object} encryption_key` Key to use for encryping the data in the stream. 
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign and encrypt. 
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
+- `{Function} cb` Function called with the signed and encrypted stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} sig_enc_s` The signed and encrypted data stream. Any signing or encryption errors will be emitted as `error` events on `sig_enc_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.verify_decrypt_verify_stream(decryption_key, verifying_key, s, [options], cb)
+
+> Verify then decrypt then verify a stream of data.
+
+**Parameters:**
+
+- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data in the stream. 
+- `{Buffer | String | Object} verifying_key` Key to use for verifying the data in the stream. 
+- `{Readable} s` The signed and encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify and decrypt. 
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
+- `{Function} cb` Function called with the verified and decrypted stream. It's passed the following arguments: 
+  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+  - `{Readable} ver_dec_s` The verified and decrypted data stream. Any verification or decryption errors will be emitted as `error` events on `ver_dec_s`.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
 _&mdash;generated by [apidox](https://github.com/codeactual/apidox)&mdash;_

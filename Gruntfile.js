@@ -76,6 +76,7 @@ module.exports = function (grunt)
                 'Crypt.prototype.encrypt': '\n## Encryption',
                 'Crypt.make': '\n## Create',
                 'Crypt.get_key_size': '\n## Key functions',
+                'Crypt.encrypt_stream': '\n## Stream functions',
                 '': '-----'
             }
         },

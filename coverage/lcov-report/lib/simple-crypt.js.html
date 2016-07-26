@@ -20,24 +20,24 @@
     </h1>
     <div class='clearfix'>
       <div class='fl pad1y space-right2'>
-        <span class="strong">84.76% </span>
+        <span class="strong">84.2% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>573/676</span>
+        <span class='fraction'>581/690</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">80.86% </span>
+        <span class="strong">80.53% </span>
         <span class="quiet">Branches</span>
-        <span class='fraction'>300/371</span>
+        <span class='fraction'>302/375</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">97.56% </span>
+        <span class="strong">93.18% </span>
         <span class="quiet">Functions</span>
-        <span class='fraction'>80/82</span>
+        <span class='fraction'>82/88</span>
       </div>
       <div class='fl pad1y space-right2'>
-        <span class="strong">84.76% </span>
+        <span class="strong">84.2% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>573/676</span>
+        <span class='fraction'>581/690</span>
       </div>
     </div>
   </div>
@@ -1821,7 +1821,43 @@
 1776
 1777
 1778
-1779</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+1779
+1780
+1781
+1782
+1783
+1784
+1785
+1786
+1787
+1788
+1789
+1790
+1791
+1792
+1793
+1794
+1795
+1796
+1797
+1798
+1799
+1800
+1801
+1802
+1803
+1804
+1805
+1806
+1807
+1808
+1809
+1810
+1811
+1812
+1813
+1814
+1815</td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2777,6 +2813,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6×</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2807,6 +2861,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6×</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4553,7 +4625,25 @@ Crypt.sign_encrypt_sign_stream = function (signing_key, encryption_key, s, optio
 <span class="cstat-no" title="statement not covered" >                return cb(err);</span>
             }
 &nbsp;
-            This.sign_stream(signing_key, es, options, cb);
+            This.sign_stream(signing_key, es, options, function (err, ss2)
+            {
+                <span class="missing-if-branch" title="if path not taken" >I</span>if (err)
+                {
+<span class="cstat-no" title="statement not covered" >                    return cb(err);</span>
+                }
+&nbsp;
+                ss.on('error', <span class="fstat-no" title="function not covered" >function (err)</span>
+                {
+<span class="cstat-no" title="statement not covered" >                    ss2.emit('error', err);</span>
+                });
+&nbsp;
+                es.on('error', <span class="fstat-no" title="function not covered" >function (err)</span>
+                {
+<span class="cstat-no" title="statement not covered" >                    ss2.emit('error', err);</span>
+                });
+&nbsp;
+                cb(null, ss2);
+            });
         });
     });
 };
@@ -4584,7 +4674,25 @@ Crypt.verify_decrypt_verify_stream = function (decryption_key, verifying_key, s,
 <span class="cstat-no" title="statement not covered" >                return cb(err);</span>
             }
 &nbsp;
-            This.verify_stream(verifying_key, ds, options, cb);
+            This.verify_stream(verifying_key, ds, options, function (err, vs2)
+            {
+                <span class="missing-if-branch" title="if path not taken" >I</span>if (err)
+                {
+<span class="cstat-no" title="statement not covered" >                    return cb(err);</span>
+                }
+&nbsp;
+                vs.on('error', <span class="fstat-no" title="function not covered" >function (err)</span>
+                {
+<span class="cstat-no" title="statement not covered" >                    vs2.emit('error', err);</span>
+                });
+&nbsp;
+                ds.on('error', <span class="fstat-no" title="function not covered" >function (err)</span>
+                {
+<span class="cstat-no" title="statement not covered" >                    vs2.emit('error', err);</span>
+                });
+&nbsp;
+                cb(null, vs2);
+            });
         });
     });
 };
@@ -5383,7 +5491,7 @@ SlowCrypt.prototype.verify = function (data, f)
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Tue Jul 26 2016 21:30:48 GMT+0100 (BST)
+  generated by <a href="http://istanbul-js.org/" target="_blank">istanbul</a> at Tue Jul 26 2016 23:24:58 GMT+0100 (BST)
 </div>
 </div>
 <script src="../prettify.js"></script>
