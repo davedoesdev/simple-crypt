@@ -712,6 +712,9 @@ slow|3,130|3,129,778|801
 
 > Encrypt a stream of data.
 
+Each chunk in the stream is encrypted separately, along with the hash of the
+preceding chunk.
+
 **Parameters:**
 
 - `{Buffer | String | Object} key` Key to use for encryping the data in the stream. 
@@ -743,6 +746,9 @@ slow|3,130|3,129,778|801
 ## Crypt.sign_stream(key, s, [options], cb)
 
 > Sign a stream of data.
+
+Each chunk in the stream is signed separately, along with the hash of the
+preceding chunk.
 
 **Parameters:**
 
