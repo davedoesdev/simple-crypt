@@ -87,6 +87,11 @@ if (process.env.SLOW)
             }
 
             return new Buffer(arr).toString('base64');
+        },
+
+        location: {
+            protocol: 'http',
+            host: 'dummy.com'
         }
     };
 
