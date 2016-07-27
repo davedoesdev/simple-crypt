@@ -1,4 +1,10 @@
-
+/*global describe: false,
+         it: false,
+         expect: false,
+         beforeEach: false,
+         afterEach: false,
+         Crypt: false */
+/*jslint node: true */
 "use strict";
 
 var sinon = require('sinon');
