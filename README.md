@@ -352,6 +352,7 @@ slow|3,130|3,129,778|801
 
 ## Key functions
 - <a name="toc_cryptget_key_size"></a>[Crypt.get_key_size](#cryptget_key_size)
+- <a name="toc_cryptget_iv_size"></a>[Crypt.get_iv_size](#cryptget_iv_size)
 - <a name="toc_cryptparse_keykey-cb"></a>[Crypt.parse_key](#cryptparse_keykey-cb)
 - <a name="toc_cryptprototypeget_key"></a><a name="toc_cryptprototype"></a>[Crypt.prototype.get_key](#cryptprototypeget_key)
 
@@ -396,7 +397,7 @@ slow|3,130|3,129,778|801
 
   - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
 
-  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size](#cryptget_key_size). It will be used as a symmetric key for encryption or signing.
+  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size()](#cryptget_key_size). It will be used as a symmetric key for encryption or signing.
 
   - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
@@ -438,6 +439,16 @@ slow|3,130|3,129,778|801
 **Return:**
 
 `{Number}` Encryption key size.
+
+<sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
+
+## Crypt.get_iv_size()
+
+> Get the size (in bytes) that [Crypt.prototype.encrypt](#cryptprototypeencryptdata-iv-cb) expects (optional) initialisation vectors to be.
+
+**Return:**
+
+`{Number}` Initialisation vector size.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -484,7 +495,7 @@ slow|3,130|3,129,778|801
 
   - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be padded to a multiple of 16 bytes.
 
-- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. 
+- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. Length must be equal to [get_iv_size()](#cryptget_iv_size). 
 - `{Function} cb` Function called with the result. It's passed the following arguments: 
   - `{Object} err` If an error occurred then details of the error, otherwise `null`.
   - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `iv`, `data`, and `ekey` won't be Base64-encoded. It has the following properties:
