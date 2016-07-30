@@ -552,5 +552,126 @@ describe('errors', function ()
             });
         });
     });
+
+    it('should return x then y stream errors', function (done)
+    {
+        var sinon = this.sinon,
+            orig = {};
+
+        function sv_stub(method)
+        {
+            orig[method + '_stream'] = Crypt[method + '_stream'];
+
+            sinon.stub(Crypt, method + '_stream', function (k, s, options, cb)
+            {
+                if (k === key)
+                {
+                    return cb(new Error('sv error'));
+                }
+
+                if (k === key3)
+                {
+                    if (options.key3ed)
+                    {
+                        return cb(new Error('sv error 2'));
+                    }
+
+                    options.key3ed = true;
+                }
+
+                orig[method + '_stream'].call(this, k, s, options, function (err, obj)
+                {
+                    if (err) { return done(err); }
+
+                    if (k === key4)
+                    {
+                        process.nextTick(function ()
+                        {
+                            obj.emit('error', new Error('sv error 3'));
+                        });
+                    }
+
+                    cb(null, obj);
+                });
+            });
+        }
+
+        sv_stub('sign');
+        sv_stub('verify');
+
+        function ed_stub(method)
+        {
+            orig[method + '_stream'] = Crypt[method + '_stream'];
+
+            sinon.stub(Crypt, method + '_stream', function (k, s, options, cb)
+            {
+                if (k === key2)
+                {
+                    return cb(new Error('ed error'));
+                }
+
+                orig[method + '_stream'].call(this, k, s, options, function (err, obj)
+                {
+                    if (err) { return done(err); }
+
+                    if (k === key4)
+                    {
+                        process.nextTick(function ()
+                        {
+                            obj.emit('error', new Error('ed error 2'));
+                        });
+                    }
+
+                    cb(null, obj);
+                });
+            });
+        }
+
+        ed_stub('encrypt');
+        ed_stub('decrypt');
+
+        function test(method, done)
+        {
+            var s = new stream.PassThrough();
+            method += '_stream';
+            Crypt[method](key, key, s, {}, function (err)
+            {
+                expect(err.message).to.equal('sv error');
+                Crypt[method](key2, key2, s, {}, function (err)
+                {
+                    expect(err.message).to.equal('ed error');
+                    Crypt[method](key3, key3, s, {}, function (err)
+                    {
+                        expect(err.message).to.equal('sv error 2');
+                        Crypt[method](key4, key4, s, {}, function (err, out_s)
+                        {
+                            expect(err).to.equal(null);
+                            expect(out_s).to.be.an.instanceof(stream.Transform);
+                            var errs = [];
+                            out_s.on('error', function (err)
+                            {
+                                errs.push(err.message);
+                                expect(errs.length).to.be.at.most(3);
+                                if (errs.length === 3)
+                                {
+                                    expect(errs).to.eql([
+                                        'sv error 3',
+                                        'ed error 2',
+                                        'sv error 3'
+                                    ]);
+                                    done();
+                                }
+                            });
+                        });
+                    });
+                });
+            });
+        }
+
+        test('sign_encrypt_sign', function ()
+        {
+            test('verify_decrypt_verify', done);
+        });
+    });
 });
 
