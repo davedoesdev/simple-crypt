@@ -697,6 +697,11 @@ Crypt.decrypt_stream = function (key, s, options, cb)
         in_s.pipe(t);
         s.pipe(in_s);
 
+        in_s.on('error', function (err)
+        {
+            t.emit('error', err);
+        });
+
         cb(null, t);
     });
 };
@@ -897,6 +902,11 @@ Crypt.verify_stream = function (key, s, options, cb)
 
         in_s.pipe(t);
         s.pipe(in_s);
+
+        in_s.on('error', function (err)
+        {
+            t.emit('error', err);
+        });
 
         cb(null, t);
     });

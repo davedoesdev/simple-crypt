@@ -297,6 +297,26 @@ describe('errors', function ()
             });
         }
 
+        function test_in(method, cb)
+        {
+            var s = new stream.PassThrough();
+            Crypt[method + '_stream'](key, s, function (err)
+            {
+                expect(err.message).to.equal('make error');
+                Crypt[method + '_stream'](key3, s, function (err, in_s)
+                {
+                    expect(err).to.equal(null);
+                    expect(in_s).to.be.an.instanceof(stream.Transform);
+                    in_s.on('error', function (err)
+                    {
+                        expect(err.message).to.equal('Message length is less than zero');
+                        cb();
+                    });
+                    s.write(new Buffer([0xff, 0xff, 0xff, 0xff]));
+                });
+            });
+        }
+
         function setup_in(method, key, onerr, cb)
         {
             var s = new stream.PassThrough(),
@@ -325,10 +345,8 @@ describe('errors', function ()
 
         function test_decrypt(cb)
         {
-            var s = new stream.PassThrough();
-            Crypt.decrypt_stream(key, s, function (err)
+            test_in('decrypt', function ()
             {
-                expect(err.message).to.equal('make error');
                 setup_decrypt(key3, function (err)
                 {
                     expect(err.message).to.equal('wrong length');
@@ -435,10 +453,8 @@ describe('errors', function ()
         
         function test_verify(cb)
         {
-            var s = new stream.PassThrough();
-            Crypt.verify_stream(key, s, function (err)
+            test_in('verify', function ()
             {
-                expect(err.message).to.equal('make error');
                 setup_verify(key3, function (err)
                 {
                     expect(err.message).to.equal('wrong length');
