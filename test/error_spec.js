@@ -8,14 +8,17 @@
 "use strict";
 
 var sinon = require('sinon'),
-    crypto = require('crypto');
+    crypto = require('crypto'),
+    stream = require('stream'),
+    frame = require('frame-stream');
 
 describe('errors', function ()
 {
     var key = crypto.randomBytes(Crypt.get_key_size()),
         key2 = crypto.randomBytes(Crypt.get_key_size()),
         key3 = crypto.randomBytes(Crypt.get_key_size()),
-        key4 = crypto.randomBytes(Crypt.get_key_size());
+        key4 = crypto.randomBytes(Crypt.get_key_size()),
+        iv = crypto.randomBytes(Crypt.get_iv_size());
 
     beforeEach(function ()
     {
@@ -226,6 +229,310 @@ describe('errors', function ()
             {
                 expect(data).to.equal('hello');
                 done();
+            });
+        });
+    });
+
+    it('should return stream errors', function (done)
+    {
+        var sinon = this.sinon,
+            orig_make = Crypt.make;
+
+        sinon.stub(Crypt, 'make', function (k, options, cb)
+        {
+            if (k === key)
+            {
+                return cb(new Error('make error'));
+            }
+
+            orig_make.call(this, k, options, function (err, obj)
+            {
+                if (err) { return done(err); }
+
+                if (k === key2)
+                {
+                    sinon.stub(obj, 'encrypt', function (data, cb)
+                    {
+                        cb(new Error('out error'));
+                    });
+
+                    sinon.stub(obj, 'sign', function (data, cb)
+                    {
+                        cb(new Error('out error'));
+                    });
+
+                    sinon.stub(obj, 'decrypt', function (data, cb)
+                    {
+                        cb(new Error('in error'));
+                    });
+
+                    sinon.stub(obj, 'verify', function (data, cb)
+                    {
+                        cb(new Error('in error'));
+                    });
+                }
+
+                cb(null, obj);
+            });
+        });
+
+        function test_out(method, cb)
+        {
+            var s = new stream.PassThrough();
+
+            Crypt[method + '_stream'](key, s, function (err)
+            {
+                expect(err.message).to.equal('make error');
+
+                Crypt[method + '_stream'](key2, s, function (err, es)
+                {
+                    es.on('error', function (err)
+                    {
+                        expect(err.message).to.equal('out error');
+                        cb();
+                    });
+                });
+
+                s.end('hello');
+            });
+        }
+
+        function setup_in(method, key, onerr, cb)
+        {
+            var s = new stream.PassThrough(),
+                fs = frame.encode();
+
+            fs.pipe(s);
+            
+            Crypt[method + '_stream'](key, s, function (err, ds)
+            {
+                expect(err).to.equal(null);
+                expect(ds).to.be.an.instanceof(stream.Transform);
+                ds.on('error', onerr);
+                cb(fs, ds);
+            });
+        }
+
+        function setup_verify(key, onerr, cb)
+        {
+            setup_in('verify', key, onerr, cb);
+        }
+
+        function setup_decrypt(key, onerr, cb)
+        {
+            setup_in('decrypt', key, onerr, cb);
+        }
+
+        function test_decrypt(cb)
+        {
+            var s = new stream.PassThrough();
+            Crypt.decrypt_stream(key, s, function (err)
+            {
+                expect(err.message).to.equal('make error');
+                setup_decrypt(key3, function (err)
+                {
+                    expect(err.message).to.equal('wrong length');
+                    setup_decrypt(key3, function (err)
+                    {
+                        expect(err.message).to.equal('wrong length');
+                        setup_decrypt(key2, function (err)
+                        {
+                            expect(err.message).to.equal('in error');
+                            Crypt.make(key3,
+                            {
+                                base64: false,
+                                json: false
+                            },
+                            function (err, encrypter)
+                            {
+                                expect(err).to.equal(null);
+                                encrypter.encrypt('hello', iv, function (err, ev)
+                                {
+                                    expect(err).to.equal(null);
+                                    setup_decrypt(key3, function (err)
+                                    {
+                                        expect(err.message).to.equal('wrong marker');
+                                        encrypter.encrypt('\0hello', iv, function (err, ev)
+                                        {
+                                            expect(err).to.equal(null);
+                                            setup_decrypt(key3, function (err)
+                                            {
+                                                expect(err.message).to.equal('wrong marker');
+                                                setup_decrypt(key3, function (err)
+                                                {
+                                                    expect(err.message).to.equal('wrong order');
+                                                    cb();
+                                                }, function (fs, ds)
+                                                {
+                                                    fs.write(ev.iv, 'binary');
+                                                    fs.write(ev.data, 'binary');
+                                                    var buf = new Buffer(4);
+                                                    buf.writeUInt32BE(Crypt.get_version());
+                                                    fs.write(buf);
+                                                    fs.write(new Buffer([0]));
+                                                    encrypter.encrypt('\u0001hello', iv, function (err, ev)
+                                                    {
+                                                        expect(err).to.equal(null);
+                                                        fs.write(ev.iv, 'binary');
+                                                        fs.write(ev.data, 'binary');
+                                                        var buf = new Buffer(4);
+                                                        buf.writeUInt32BE(Crypt.get_version());
+                                                        fs.write(buf);
+                                                        fs.write(new Buffer([0]));
+                                                    });
+                                                });
+                                            }, function (fs, ds)
+                                            {
+                                                fs.write(ev.iv, 'binary');
+                                                fs.write(ev.data, 'binary');
+                                                var buf = new Buffer(4);
+                                                buf.writeUInt32BE(Crypt.get_version());
+                                                fs.write(buf);
+                                                fs.write(new Buffer([0]));
+                                                fs.write(ev.iv, 'binary');
+                                                fs.write(ev.data, 'binary');
+                                                fs.write(buf);
+                                                fs.write(new Buffer([0]));
+                                            });
+                                        });
+                                    }, function (fs, ds)
+                                    {
+                                        fs.write(ev.iv, 'binary');
+                                        fs.write(ev.data, 'binary');
+                                        var buf = new Buffer(4);
+                                        buf.writeUInt32BE(Crypt.get_version());
+                                        fs.write(buf);
+                                        fs.write(new Buffer([0]));
+                                    });
+                                });
+                            });
+                        }, function (fs, ds)
+                        {
+                            fs.write(iv);
+                            fs.write('hello');
+                            var buf = new Buffer(4);
+                            buf.writeUInt32BE(Crypt.get_version());
+                            fs.write(buf);
+                            fs.write(new Buffer([0]));
+                        });
+                    }, function (fs, ds)
+                    {
+                        fs.write(iv);
+                        fs.write('hello');
+                        var buf = new Buffer(4);
+                        buf.writeUInt32BE(Crypt.get_version());
+                        fs.write(buf);
+                        ds.write('');
+                    });
+                }, function (fs, ds)
+                {
+                    fs.write(iv);
+                    fs.write('hello');
+                    fs.write('dummy');
+                });
+            });
+        }
+        
+        function test_verify(cb)
+        {
+            var s = new stream.PassThrough();
+            Crypt.verify_stream(key, s, function (err)
+            {
+                expect(err.message).to.equal('make error');
+                setup_verify(key3, function (err)
+                {
+                    expect(err.message).to.equal('wrong length');
+                    setup_verify(key2, function (err)
+                    {
+                        expect(err.message).to.equal('in error');
+                        Crypt.make(key3,
+                        {
+                            base64: false,
+                            json: false
+                        },
+                        function (err, signer)
+                        {
+                            expect(err).to.equal(null);
+                            signer.sign('hello', function (err, sv)
+                            {
+                                expect(err).to.equal(null);
+                                setup_verify(key3, function (err)
+                                {
+                                    expect(err.message).to.equal('wrong marker');
+                                    signer.sign('\0hello', function (err, sv)
+                                    {
+                                        expect(err).to.equal(null);
+                                        setup_verify(key3, function (err)
+                                        {
+                                            expect(err.message).to.equal('wrong marker');
+                                            setup_verify(key3, function (err)
+                                            {
+                                                expect(err.message).to.equal('wrong order');
+                                                cb();
+                                            }, function (fs, ds)
+                                            {
+                                                fs.write(sv.signature, 'binary');
+                                                fs.write(sv.data, 'binary');
+                                                var buf = new Buffer(4);
+                                                buf.writeUInt32BE(Crypt.get_version());
+                                                fs.write(buf);
+                                                signer.sign('\u0001hello', function (err, sv)
+                                                {
+                                                    expect(err).to.equal(null);
+                                                    fs.write(sv.signature, 'binary');
+                                                    fs.write(sv.data, 'binary');
+                                                    var buf = new Buffer(4);
+                                                    buf.writeUInt32BE(Crypt.get_version());
+                                                    fs.write(buf);
+                                                });
+                                            });
+                                        }, function (fs, ds)
+                                        {
+                                            fs.write(sv.signature, 'binary');
+                                            fs.write(sv.data, 'binary');
+                                            var buf = new Buffer(4);
+                                            buf.writeUInt32BE(Crypt.get_version());
+                                            fs.write(buf);
+                                            fs.write(sv.signature, 'binary');
+                                            fs.write(sv.data, 'binary');
+                                            fs.write(buf);
+                                        });
+                                    });
+                                }, function (fs, ds)
+                                {
+                                    fs.write(sv.signature, 'binary');
+                                    fs.write(sv.data, 'binary');
+                                    var buf = new Buffer(4);
+                                    buf.writeUInt32BE(Crypt.get_version());
+                                    fs.write(buf);
+                                });
+                            });
+                        });
+                    }, function (fs, ds)
+                    {
+                        fs.write('sig');
+                        fs.write('hello');
+                        var buf = new Buffer(4);
+                        buf.writeUInt32BE(Crypt.get_version());
+                        fs.write(buf);
+                    });
+                }, function (fs, ds)
+                {
+                    fs.write('sig');
+                    fs.write('hello');
+                    fs.write('dummy');
+                });
+            });
+        }
+
+        test_out('encrypt', function ()
+        {
+            test_decrypt(function ()
+            {
+                test_out('sign', function ()
+                {
+                    test_verify(done);
+                });
             });
         });
     });
