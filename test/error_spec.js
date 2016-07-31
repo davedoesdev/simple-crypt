@@ -673,5 +673,35 @@ describe('errors', function ()
             test('verify_decrypt_verify', done);
         });
     });
+
+    it('should treat -----BEGIN but not PUBLIC/PRIVATE KEY as a symmetric key', function (done)
+    {
+        var key = '-----BEGIN KEY  ';
+        Crypt.make(key, function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            if (process.env.SLOW)
+            {
+                expect(new Buffer(crypt.key).toString('binary')).to.equal(key);
+            }
+            else
+            {
+                expect(crypt.key).to.equal(key);
+            }
+            crypt.encrypt('hello', function (err, edata)
+            {
+                expect(err).to.equal(null);
+                crypt.decrypt(edata, function (err, data)
+                {
+                    expect(err).to.equal(null);
+                    expect(data).to.equal('hello');
+                    done();
+                });
+            });
+        });
+    });
+
+    // pbkdf error and key
+    // what about exceptions in parse_key? need to catch them
 });
 
