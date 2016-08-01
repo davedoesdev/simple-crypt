@@ -39,7 +39,11 @@ describe('browser', function ()
                 {
                     if (err)
                     {
-                        r.err = err.stack || err.toString();
+                        r.err = err.toString();
+                        if (err.stack)
+                        {
+                            r.err += '\n' + err.stack;
+                        }
                     }
                     else
                     {
@@ -51,7 +55,7 @@ describe('browser', function ()
             }
             catch (ex)
             {
-                r.err = ex.stack;
+                r.err = ex.toString() + '\n' + ex.stack;
                 done(r);
             }
         };
@@ -68,7 +72,7 @@ describe('browser', function ()
 
             if (r.err)
             {
-                cb(r.err);
+                cb(new Error(r.err));
                 return;
             }
 

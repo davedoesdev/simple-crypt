@@ -585,10 +585,10 @@ describe('errors', function ()
 
                     if (k === key4)
                     {
-                        process.nextTick(function ()
+                        setTimeout(function ()
                         {
                             obj.emit('error', new Error('sv error 3'));
-                        });
+                        }, 250);
                     }
 
                     cb(null, obj);
@@ -616,10 +616,10 @@ describe('errors', function ()
 
                     if (k === key4)
                     {
-                        process.nextTick(function ()
+                        setTimeout(function ()
                         {
                             obj.emit('error', new Error('ed error 2'));
-                        });
+                        }, 250);
                     }
 
                     cb(null, obj);
@@ -701,7 +701,46 @@ describe('errors', function ()
         });
     });
 
-    // pbkdf error and key
-    // what about exceptions in parse_key? need to catch them
+    it('should return pbkdf2 errors', function (done)
+    {
+        if (process.env.SLOW)
+        {
+            Crypt.make(
+            {
+                password: { length: 1 }
+            }, function (err)
+            {
+                expect(err.message).to.equal('input.charCodeAt is not a function');
+                done();
+            });
+        }
+        else
+        {
+            var sinon = this.sinon;
+
+            Crypt.make(
+            {
+                password: 'foo',
+                iterations: 'hello'
+            }, function (err)
+            {
+                expect(err.message).to.equal('Iterations not a number');
+
+                sinon.stub(crypto, 'pbkdf2', function (password, salt, iterations, keylen, digest, callback)
+                {
+                    callback(new Error('dummy error'));
+                });
+                
+                Crypt.make(
+                {
+                    password: 'foo'
+                }, function (err)
+                {
+                    expect(err.message).to.equal('dummy error');
+                    done();
+                });
+            });
+        }
+    });
 });
 
