@@ -94,6 +94,26 @@ describe('encrypt_decrypt_symmetric', function ()
         }, callback);
     });
 
+    it('pbkdf2 should call progress function', function (done)
+    {
+        var p;
+
+        Crypt.make(
+        {
+            password: 'hello',
+            iterations: 10000,
+            progress: function (n)
+            {
+                p = n;
+            }
+        }, function (err)
+        {
+            expect(err).to.equal(null);
+            expect(p).to.equal(100);
+            done();
+        });
+    });
+
     encrypt_decrypt.setup(function ()
     {
         return crypto.randomBytes(Crypt.get_key_size());

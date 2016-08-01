@@ -3,7 +3,9 @@
          expect: false,
          beforeEach: false,
          afterEach: false,
-         Crypt: false */
+         Crypt: false,
+         pub_key: false,
+         priv_key: false */
 /*jslint node: true */
 "use strict";
 
@@ -710,7 +712,10 @@ describe('errors', function ()
                 password: { length: 1 }
             }, function (err)
             {
-                expect(err.message).to.equal('input.charCodeAt is not a function');
+                expect(err.message).to.be.oneOf([
+                    'input.charCodeAt is not a function',
+                    'undefined is not a function'
+                ]);
                 done();
             });
         }
@@ -737,10 +742,111 @@ describe('errors', function ()
                 }, function (err)
                 {
                     expect(err.message).to.equal('dummy error');
-                    done();
+
+                    crypto.pbkdf2.restore();
+                    sinon.stub(crypto, 'pbkdf2', function ()
+                    {
+                        throw('dummy error 2');
+                    });
+
+                    Crypt.make(
+                    {
+                        password: 'foo'
+                    }, function (err)
+                    {
+                        expect(err.message).to.equal('dummy error 2');
+                        done();
+                    });
                 });
             });
         }
+    });
+
+    it('should error if try to decrypt with a public key', function (done)
+    {
+        Crypt.make(pub_key, function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            crypt.decrypt(
+            {
+                version: Crypt.get_version()
+            }, function (err)
+            {
+                expect(err.message).to.equal("can't decrypt using public key");
+                done();
+            });
+        });
+    });
+
+    it("should error if encrypted digest doesn't match", function (done)
+    {
+        Crypt.make(crypto.randomBytes(Crypt.get_key_size()), 
+        {
+            base64: false,
+            json: false
+        }, function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            crypt.encrypt(new Buffer('hello'), function (err, edata)
+            {
+                expect(err).to.equal(null);
+                if (process.env.SLOW)
+                {
+                    edata.data = 'A' + edata.data.substr(1);
+                }
+                else
+                {
+                    edata.data[0] = ~edata.data[0];
+                }
+                crypt.decrypt(edata, function (err)
+                {
+                    expect(err.message).to.equal('digest mismatch');
+                    done();
+                });
+            });
+        });
+    });
+
+    it('should error if try to verify using private key', function (done)
+    {
+        Crypt.make(priv_key,
+        {
+            base64: false
+        }, function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            crypt.verify(
+            {
+                version: Crypt.get_version(),
+                data: [0]
+            }, function (err)
+            {
+                expect(err.message).to.equal("can't verify using private key");
+                done();
+            });
+        });
+    });
+
+    it('should error if signature length is wrong', function (done)
+    {
+        Crypt.make(key,
+        {
+            base64: false 
+        }, function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            crypt.sign(new Buffer('hello'), function (err, sdata)
+            {
+                sdata.signature = process.env.SLOW ?
+                        sdata.signature + '\0' :
+                        Buffer.concat([sdata.signature, new Buffer([0])]);
+                crypt.verify(sdata, function (err)
+                {
+                    expect(err.message).to.equal('digest mismatch');
+                    done();
+                });
+            });
+        });
     });
 });
 

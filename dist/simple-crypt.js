@@ -19,6 +19,11 @@
 // Simple symmetric and asymmetric crypto.
 // Note: Keep an eye on http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-05
 
+function ensure_error(e)
+{
+    return e instanceof Error ? e : new Error(e);
+}
+
 var SHA1_SIZE = 20,
     SHA256_SIZE = 32,
     AES_BLOCK_SIZE = 16,
@@ -1089,7 +1094,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return cb.call(this, ex instanceof Error ? ex : new Error(ex));
+            return cb.call(this, ensure_error(ex));
         }
     };
 
@@ -1168,7 +1173,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ex instanceof Error ? ex : new Error(ex));
+            return f.call(this, ensure_error(ex));
         }
 
         f.call(this, null, { iv: iv64, data: edata, ekey: ekey, version: Crypt.get_version() });
@@ -1228,7 +1233,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ex instanceof Error ? ex : new Error(ex));
+            return f.call(this, ensure_error(ex));
         }
 
         f.call(this, null, jdata);
@@ -1270,7 +1275,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ex instanceof Error ? ex : new Error(ex));
+            return f.call(this, ensure_error(ex));
         }
 
         f.call(this, null, { data: jdata, signature: signature, version: Crypt.get_version() });
@@ -1324,7 +1329,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ex instanceof Error ? ex : new Error(ex));
+            return f.call(this, ensure_error(ex));
         }
 
         f.call(this, null, jdata);
@@ -1500,7 +1505,7 @@ SlowCrypt.parse_key = function (key, cb)
     }
     catch (ex)
     {
-        return cb.call(this, ex instanceof Error ? ex : new Error(ex));
+        return cb.call(this, ensure_error(ex));
     }
 };
 
@@ -1615,7 +1620,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
     }
     catch (ex)
     {
-        return f.call(this, ex instanceof Error ? ex : new Error(ex));
+        return f.call(this, ensure_error(ex));
     }
 
     f.call(this, null, { iv: iv64, data: edata, ekey: ekey, version: SlowCrypt.get_version() });
@@ -1692,7 +1697,7 @@ SlowCrypt.prototype.decrypt = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ex instanceof Error ? ex : new Error(ex));
+        return f.call(this, ensure_error(ex));
     }
 
     f.call(this, null, jdata);
@@ -1736,7 +1741,7 @@ SlowCrypt.prototype.sign = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ex instanceof Error ? ex : new Error(ex));
+        return f.call(this, ensure_error(ex));
     }
 
     f.call(this, null, { data: jdata, signature: signature, version: SlowCrypt.get_version() });
@@ -1790,7 +1795,7 @@ SlowCrypt.prototype.verify = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ex instanceof Error ? ex : new Error(ex));
+        return f.call(this, ensure_error(ex));
     }
 
     f.call(this, null, jdata);
