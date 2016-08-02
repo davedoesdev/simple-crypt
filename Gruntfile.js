@@ -99,7 +99,7 @@ module.exports = function (grunt)
             },
 
             'check-cover': {
-                cmd: './node_modules/.bin/istanbul check-coverage --statement 80 --branch 80 --function 80 --line 80',
+                cmd: './node_modules/.bin/istanbul check-coverage --statement 100 --branch 100 --function 100 --line 100',
                 fail: true
             },
 
