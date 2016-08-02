@@ -505,7 +505,8 @@ Crypt.encrypt_stream = function (key, s, options, cb)
             return cb(err);
         }
 
-        var Transform = require('stream').Transform,
+        var Buffer = require('buffer').Buffer,
+            Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
             out_s = frame.encode(options),
@@ -590,9 +591,11 @@ Crypt.decrypt_stream = function (key, s, options, cb)
             return cb(err);
         }
 
-        var Transform = require('stream').Transform,
+        var Buffer = require('buffer').Buffer,
+            Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
+            buffer_equal = require('buffer-equal-constant-time'),
             in_s = frame.decode(options),
             crypto = require('crypto'),
             hash,
@@ -732,7 +735,8 @@ Crypt.sign_stream = function (key, s, options, cb)
             return cb(err);
         }
 
-        var Transform = require('stream').Transform,
+        var Buffer = require('buffer').Buffer,
+            Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
             out_s = frame.encode(options),
@@ -809,9 +813,11 @@ Crypt.verify_stream = function (key, s, options, cb)
             return cb(err);
         }
 
-        var Transform = require('stream').Transform,
+        var Buffer = require('buffer').Buffer,
+            Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
+            buffer_equal = require('buffer-equal-constant-time'),
             in_s = frame.decode(options),
             crypto = require('crypto'),
             hash,

@@ -130,6 +130,10 @@ module.exports = function (grunt)
                 cmd: 'pkill -g 0 phantomjs'
             },
 
+            bundle: {
+                cmd: './node_modules/.bin/webpack test/fixtures/bundler.js test/fixtures/bundle.js'
+            },
+
             install: {
                 cmd: 'git submodule init && ' +
                      'git submodule update && ' +
@@ -149,32 +153,33 @@ module.exports = function (grunt)
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-env');
 
+    function test_tasks(extra, task)
+    {
+        return ['bgShell:bundle',
+                'build',
+                'bgShell:start_phantomjs',
+                'sleep:10000',
+                'usetheforce_on'].concat(
+                extra,
+                'mochaTest:' + task,
+                'bgShell:stop_phantomjs',
+                'usetheforce_restore');
+    }
+
     grunt.registerTask('lint', 'jshint');
-    grunt.registerTask('test', ['bgShell:start_phantomjs',
-                                'sleep:10000',
-                                'usetheforce_on',
-                                'mochaTest:default',
-                                'bgShell:stop_phantomjs',
-                                'usetheforce_restore']);
-    grunt.registerTask('test-slow', ['bgShell:start_phantomjs',
-                                     'sleep:10000',
-                                     'usetheforce_on',
-                                     'env:slow',
-                                     'mochaTest:default',
-                                     'bgShell:stop_phantomjs',
-                                     'usetheforce_restore']);
-    grunt.registerTask('test-browser', ['bgShell:start_phantomjs',
-                                        'sleep:10000',
-                                        'usetheforce_on',
-                                        'mochaTest:browser',
-                                        'bgShell:stop_phantomjs',
-                                        'usetheforce_restore']);
+    grunt.registerTask('test', test_tasks([], 'default'));
+    grunt.registerTask('test-slow', test_tasks('env:slow', 'default'));
+    grunt.registerTask('test-browser', test_tasks([], 'browser'));
     grunt.registerTask('docs', 'apidox');
-    grunt.registerTask('coverage', ['bgShell:cover-fast', 'bgShell:cover-slow', 'bgShell:check-cover', 'bgShell:cover-report']);
+    grunt.registerTask('coverage', ['bgShell:cover-fast',
+                                    'bgShell:cover-slow',
+                                    'bgShell:check-cover',
+                                    'bgShell:cover-report']);
     grunt.registerTask('coveralls', 'bgShell:coveralls');
     grunt.registerTask('bench', 'bgShell:bench');
     grunt.registerTask('bench-gfm', 'bgShell:bench_gfm');
-    grunt.registerTask('build', ['concat:simple-crypt', 'concat:simple-crypt-deps']);
+    grunt.registerTask('build', ['concat:simple-crypt',
+                                 'concat:simple-crypt-deps']);
     grunt.registerTask('install', 'bgShell:install');
     grunt.registerTask('default', ['lint', 'test']);
 

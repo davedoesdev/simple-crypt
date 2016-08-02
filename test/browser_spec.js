@@ -1276,4 +1276,70 @@ describe('browser', function ()
 
     setup_then(sv_key, ed_key, ed_key, sv_key);
     setup_then(priv_pem, pub_pem, priv_pem, pub_pem);
+
+    it('should sign then encrypt then sign to a stream and verify then decrypt then verify from a stream', function (cb)
+    {
+		in_browser(function (cb)
+        {
+            var Buffer = require('buffer').Buffer;
+
+			function random_buf(n)
+            {
+                var r = '', i, a = new Uint8Array(1);
+
+                for (i = 0; i < n; i += 1)
+                {
+                    window.crypto.getRandomValues(a);
+                    r += String.fromCharCode(a);
+                }
+
+                return new Buffer(r, 'binary');
+            }
+
+            var key = random_buf(Crypt.get_key_size()),
+                buf = random_buf(100 * 1024),
+                buf2 = random_buf(1),
+                buf3 = random_buf(100),
+                pthru = new require('stream').PassThrough();
+
+            Crypt.sign_encrypt_sign_stream(key, key, pthru, function (err, ses_stream)
+            {
+                if (err) { return cb(err); }
+                Crypt.verify_decrypt_verify_stream(key, key, ses_stream, function (err, vdv_stream)
+                {
+                    if (err) { return cb(err); }
+
+                    var bufs = [];
+
+                    vdv_stream.on('readable', function ()
+                    {
+                        while (true)
+                        {
+                            var buf = this.read();
+                            if (!buf)
+                            {
+                                break;
+                            }
+                            bufs.push(buf);
+                        }
+                    });
+
+                    vdv_stream.on('end', function ()
+                    {
+                        cb(null, Buffer.concat(bufs).equals(Buffer.concat([buf, buf2, buf3])));
+                    });
+                });
+            });
+
+            pthru.write(buf);
+            pthru.write(buf2);
+            pthru.end(buf3);
+        },
+        function (v, cb)
+        {
+            expect(v).to.equal(true);
+            cb();
+        },
+        cb);
+    });
 });

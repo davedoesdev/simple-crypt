@@ -1,3 +1,4 @@
-node_modules
-slowaes
-js-rsa-pem
+/node_modules
+/slowaes
+/js-rsa-pem
+/test/fixtures/bundle.js
