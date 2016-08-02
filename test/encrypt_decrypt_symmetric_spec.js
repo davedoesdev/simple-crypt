@@ -114,6 +114,45 @@ describe('encrypt_decrypt_symmetric', function ()
         });
     });
 
+    it('should support string initialisation vectors', function (done)
+    {
+        Crypt.make('symmetric key   ', function (err, crypt)
+        {
+            expect(err).to.equal(null);
+            crypt.encrypt('hello', 'initzn vector   ', function (err, edata)
+            {
+                expect(err).to.equal(null);
+                expect(edata.iv).to.equal(new Buffer('initzn vector   ', 'binary').toString('base64'));
+                crypt.decrypt(edata, function (err, ddata)
+                {
+                    expect(err).to.equal(null);
+                    expect(ddata).to.equal('hello');
+
+                    Crypt.make('symmetric key   ',
+                    {
+                        base64: false
+                    }, function (err, crypt)
+                    {
+                        expect(err).to.equal(null);
+                        crypt.encrypt('hello', 'initzn vector   ', function (err, edata)
+                        {
+                            expect(err).to.equal(null);
+                            expect(edata.iv).to.eql(process.env.SLOW ?
+                                    'initzn vector   ' :
+                                    new Buffer('initzn vector   ', 'binary'));
+                            crypt.decrypt(edata, function (err, ddata)
+                            {
+                                expect(err).to.equal(null);
+                                expect(ddata).to.equal('hello');
+                                done();
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+
     encrypt_decrypt.setup(function ()
     {
         return crypto.randomBytes(Crypt.get_key_size());
