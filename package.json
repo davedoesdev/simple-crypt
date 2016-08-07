@@ -1,7 +1,7 @@
 {
   "name": "simple-crypt",
   "description": "Simple and easy-to-use encryption and signing module",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/davedoesdev/simple-crypt",
   "author": {
     "name": "David Halls",
@@ -36,7 +36,8 @@
   ],
   "dependencies": {
     "ursa": "~0.9.4",
-    "frame-stream": "~1.1.1"
+    "frame-stream": "~1.1.1",
+    "buffer-equal-constant-time": "^1.0.1"
   },
   "devDependencies": {
     "grunt": "~1.0.1",
@@ -55,7 +56,6 @@
     "async": "~1.5.2",
     "b": "git://github.com/davedoesdev/b.git",
     "readable-stream": "~2.1.4",
-    "buffer-equal-constant-time": "^1.0.1",
     "phantomjs-prebuilt": "~2.1.7",
     "sinon": "~1.17.5",
     "webpack": "~1.13.1"
