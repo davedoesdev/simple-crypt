@@ -16,17 +16,6 @@ describe('sign_verify_asymmetric_priv_pub', function ()
     {
         return pub_key;
     });
-});
-
-describe('sign_verify_asymmetric_pub_priv', function ()
-{
-    require('./sign_verify').setup(function ()
-    {
-        return pub_key;
-    }, function ()
-    {
-        return priv_key;
-    }, true);
 
     it('should support binary signatures', function (done)
     {
@@ -63,5 +52,16 @@ describe('sign_verify_asymmetric_pub_priv', function ()
             });
         });
     });
+});
+
+describe('sign_verify_asymmetric_pub_priv', function ()
+{
+    require('./sign_verify').setup(function ()
+    {
+        return pub_key;
+    }, function ()
+    {
+        return priv_key;
+    }, true);
 });
 

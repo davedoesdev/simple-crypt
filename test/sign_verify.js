@@ -21,7 +21,7 @@ function setup(get_signing_key, get_verifying_key, expect_sign_error, expect_ver
                 callback(err);
                 return;
             }
-            
+
             sign.sign(json_vector, function (err, sv)
             {
                 if (expect_sign_error)

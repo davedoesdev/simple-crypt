@@ -34,7 +34,7 @@ describe('errors', function ()
 
     it('should return an error when constructing if parse_key errors', function (cb)
     {
-        this.sinon.stub(Crypt, 'parse_key', function (key, cb)
+        this.sinon.stub(Crypt, 'parse_key').callsFake(function (key, cb)
         {
             cb(new Error('dummy error'));
         });
@@ -133,7 +133,7 @@ describe('errors', function ()
                 if (err) { return done(err); }
                 expect(sdata.signed).to.equal(true);
 
-                sinon.stub(Crypt, 'parse_key', function (key, cb)
+                sinon.stub(Crypt, 'parse_key').callsFake(function (key, cb)
                 {
                     cb(new Error('dummy error'));
                 });
@@ -158,7 +158,7 @@ describe('errors', function ()
         var sinon = this.sinon,
             orig_make = Crypt.make;
 
-        sinon.stub(Crypt, 'make', function (k, cb)
+        sinon.stub(Crypt, 'make').callsFake(function (k, cb)
         {
             if (k === key)
             {
@@ -171,12 +171,12 @@ describe('errors', function ()
 
                 if (k === key2)
                 {
-                    sinon.stub(obj, 'sign', function (data, cb)
+                    sinon.stub(obj, 'sign').callsFake(function (data, cb)
                     {
                         cb(new Error('error2'));
                     });
 
-                    sinon.stub(obj, 'verify', function (data, cb)
+                    sinon.stub(obj, 'verify').callsFake(function (data, cb)
                     {
                         cb(new Error('error2'));
                     });
@@ -184,12 +184,12 @@ describe('errors', function ()
 
                 if (k === key3)
                 {
-                    sinon.stub(obj, 'encrypt', function (data, iv, cb)
+                    sinon.stub(obj, 'encrypt').callsFake(function (data, iv, cb)
                     {
                         cb(new Error('error3'));
                     });
 
-                    sinon.stub(obj, 'decrypt', function (data, cb)
+                    sinon.stub(obj, 'decrypt').callsFake(function (data, cb)
                     {
                         cb(new Error('error3'));
                     });
@@ -240,7 +240,7 @@ describe('errors', function ()
         var sinon = this.sinon,
             orig_make = Crypt.make;
 
-        sinon.stub(Crypt, 'make', function (k, options, cb)
+        sinon.stub(Crypt, 'make').callsFake(function (k, options, cb)
         {
             if (k === key)
             {
@@ -253,22 +253,22 @@ describe('errors', function ()
 
                 if (k === key2)
                 {
-                    sinon.stub(obj, 'encrypt', function (data, cb)
+                    sinon.stub(obj, 'encrypt').callsFake(function (data, cb)
                     {
                         cb(new Error('out error'));
                     });
 
-                    sinon.stub(obj, 'sign', function (data, cb)
+                    sinon.stub(obj, 'sign').callsFake(function (data, cb)
                     {
                         cb(new Error('out error'));
                     });
 
-                    sinon.stub(obj, 'decrypt', function (data, cb)
+                    sinon.stub(obj, 'decrypt').callsFake(function (data, cb)
                     {
                         cb(new Error('in error'));
                     });
 
-                    sinon.stub(obj, 'verify', function (data, cb)
+                    sinon.stub(obj, 'verify').callsFake(function (data, cb)
                     {
                         cb(new Error('in error'));
                     });
@@ -564,7 +564,7 @@ describe('errors', function ()
         {
             orig[method + '_stream'] = Crypt[method + '_stream'];
 
-            sinon.stub(Crypt, method + '_stream', function (k, s, options, cb)
+            sinon.stub(Crypt, method + '_stream').callsFake(function (k, s, options, cb)
             {
                 if (k === key)
                 {
@@ -605,7 +605,7 @@ describe('errors', function ()
         {
             orig[method + '_stream'] = Crypt[method + '_stream'];
 
-            sinon.stub(Crypt, method + '_stream', function (k, s, options, cb)
+            sinon.stub(Crypt, method + '_stream').callsFake(function (k, s, options, cb)
             {
                 if (k === key2)
                 {
@@ -688,7 +688,7 @@ describe('errors', function ()
             }
             else
             {
-                expect(crypt.key).to.equal(key);
+                expect(crypt.key.toString('binary')).to.equal(key);
             }
             crypt.encrypt('hello', function (err, edata)
             {
@@ -731,7 +731,7 @@ describe('errors', function ()
             {
                 expect(err.message).to.equal('Iterations not a number');
 
-                sinon.stub(crypto, 'pbkdf2', function (password, salt, iterations, keylen, digest, callback)
+                sinon.stub(crypto, 'pbkdf2').callsFake(function (password, salt, iterations, keylen, digest, callback)
                 {
                     callback(new Error('dummy error'));
                 });
@@ -744,7 +744,7 @@ describe('errors', function ()
                     expect(err.message).to.equal('dummy error');
 
                     crypto.pbkdf2.restore();
-                    sinon.stub(crypto, 'pbkdf2', function ()
+                    sinon.stub(crypto, 'pbkdf2').callsFake(function ()
                     {
                         throw('dummy error 2');
                     });

@@ -2,3 +2,4 @@
 /slowaes
 /js-rsa-pem
 /test/fixtures/bundle.js
+/.nyc_output

@@ -1,5 +1,4 @@
-/*global ursa: false,
-         priv_pem: false,
+/*global priv_pem: false,
          pub_pem: false,
          RSAKey: false */
 /*jslint node: true, nomen: true */
@@ -7,7 +6,6 @@
 
 global.expect = require('chai').expect;
 global.wd = require('wd');
-global.ursa = require('ursa');
 global.json_vector = require('./fixtures/json_vector.js');
 
 global.priv_pem = "-----BEGIN RSA PRIVATE KEY-----\n" +
@@ -48,8 +46,8 @@ global.pub_pem = "-----BEGIN PUBLIC KEY-----\n" +
 "sQIDAQAB\n" +
 "-----END PUBLIC KEY-----";
 
-global.priv_key = ursa.createPrivateKey(priv_pem, 'utf8');
-global.pub_key = ursa.createPublicKey(pub_pem, 'utf8');
+global.priv_key = { priv_key: priv_pem };
+global.pub_key = { pub_key: pub_pem };
 
 var simple_crypt = require('..');
 
@@ -139,5 +137,24 @@ if (process.env.SLOW)
 }
 else
 {
+    var parse_key = simple_crypt.Crypt.parse_key;
+
+    simple_crypt.Crypt.parse_key = function (key, cb)
+    {
+        if (key)
+        {
+            if (key.priv_key)
+            {
+                key = key.priv_key;
+            }
+            else if (key.pub_key)
+            {
+                key = key.pub_key;
+            }
+        }
+
+        parse_key(key, cb);
+    };
+
     global.Crypt = simple_crypt.Crypt;
 }

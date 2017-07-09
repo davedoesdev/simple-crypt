@@ -53,7 +53,7 @@ module.exports = function (grunt)
 
         mochaTest: {
             default: {
-                src: 'test/*.js',
+                src: ['test/*.js', '!test/browser_spec.js'],
                 options: mocha_options
             },
 
@@ -83,7 +83,7 @@ module.exports = function (grunt)
 
         bgShell: {
             'cover-fast': {
-                cmd: './node_modules/.bin/istanbul cover --dir ./coverage/fast --report none -x Gruntfile.js ./node_modules/.bin/grunt test',
+                cmd: "./node_modules/.bin/nyc -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test",
                 fail: true,
                 execOpts: {
                     maxBuffer: 0
@@ -91,20 +91,20 @@ module.exports = function (grunt)
             },
 
             'cover-slow': {
-                cmd: './node_modules/.bin/istanbul cover --dir ./coverage/slow --report none -x Gruntfile.js ./node_modules/.bin/grunt test-slow',
+                cmd: "./node_modules/.bin/nyc --no-clean -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test-slow",
                 fail: true,
                 execOpts: {
                     maxBuffer: 0
                 }
             },
 
-            'check-cover': {
-                cmd: './node_modules/.bin/istanbul check-coverage --statement 100 --branch 100 --function 100 --line 100',
+            'cover-report': {
+                cmd: './node_modules/.bin/nyc report -r lcov',
                 fail: true
             },
 
-            'cover-report': {
-                cmd: './node_modules/.bin/istanbul report',
+            'cover-check': {
+                cmd: './node_modules/.bin/nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100',
                 fail: true
             },
 
@@ -153,28 +153,25 @@ module.exports = function (grunt)
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-env');
 
-    function test_tasks(extra, task)
-    {
-        return ['bgShell:bundle',
-                'build',
-                'bgShell:start_phantomjs',
-                'sleep:10000',
-                'usetheforce_on'].concat(
-                extra,
-                'mochaTest:' + task,
-                'bgShell:stop_phantomjs',
-                'usetheforce_restore');
-    }
-
     grunt.registerTask('lint', 'jshint');
-    grunt.registerTask('test', test_tasks([], 'default'));
-    grunt.registerTask('test-slow', test_tasks('env:slow', 'default'));
-    grunt.registerTask('test-browser', test_tasks([], 'browser'));
+    grunt.registerTask('test', 'mochaTest:default');
+    grunt.registerTask('test-slow', ['bgShell:bundle',
+                                     'build',
+                                     'env:slow',
+                                     'mochaTest:default']);
+    grunt.registerTask('test-browser', ['bgShell:bundle',
+                                        'build',
+                                        'bgShell:start_phantomjs',
+                                        'sleep:10000',
+                                        'usetheforce_on',
+                                        'mochaTest:browser',
+                                        'bgShell:stop_phantomjs',
+                                        'usetheforce_restore']);
     grunt.registerTask('docs', 'apidox');
     grunt.registerTask('coverage', ['bgShell:cover-fast',
                                     'bgShell:cover-slow',
-                                    'bgShell:check-cover',
-                                    'bgShell:cover-report']);
+                                    'bgShell:cover-report',
+                                    'bgShell:cover-check']);
     grunt.registerTask('coveralls', 'bgShell:coveralls');
     grunt.registerTask('bench', 'bgShell:bench');
     grunt.registerTask('bench-gfm', 'bgShell:bench_gfm');

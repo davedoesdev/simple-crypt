@@ -53,7 +53,7 @@ describe('create', function ()
         Crypt.make('some key', function (err, crypt)
         {
             if (err) { return cb(err); }
-            expect(process.env.SLOW ? String.fromCharCode.apply(String, crypt.key) : crypt.key).to.equal('some key');
+            expect(process.env.SLOW ? String.fromCharCode.apply(String, crypt.key) : crypt.key.toString('binary')).to.equal('some key');
             expect(crypt.options).to.eql(default_opts);
             cb();
         });
@@ -71,7 +71,7 @@ describe('create', function ()
         Crypt.make('another key', opts, function (err, crypt)
         {
             if (err) { return err; }
-            expect(process.env.SLOW ? String.fromCharCode.apply(String, crypt.key) : crypt.key).to.equal('another key');
+            expect(process.env.SLOW ? String.fromCharCode.apply(String, crypt.key) : crypt.key.toString('binary')).to.equal('another key');
             expect(crypt.options).to.eql(opts);
             cb();
         });

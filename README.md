@@ -3,7 +3,7 @@
 Javascript library for signing and encrypting data.
 
 - Consistent API across Node.js and browser.
-- On Node.js wraps [crypto](http://nodejs.org/api/crypto.html) and [ursa](https://github.com/Obvious/ursa) modules.
+- On Node.js wraps [crypto](http://nodejs.org/api/crypto.html). From `simple-crypt` version 2 onwards, at least Node.js version 8 is required and the dependency on [ursa](https://github.com/Obvious/ursa) has been removed.
 - On browser wraps [SlowAES](https://code.google.com/p/slowaes/), [pbkdf2.js](http://anandam.name/pbkdf2/), [CryptoJS](https://code.google.com/p/crypto-js/), [jsrsasign](http://kjur.github.io/jsrsasign/) and [js-rsa-pem](https://bitbucket.org/adrianpasternak/js-rsa-pem/wiki/Home).
 - Hard-coded to HMAC-SHA-256 for symmetric signing.
 - Hard-coded to RSA-SHA-256 with [RSASSA-PSS](http://tools.ietf.org/html/rfc3447#section-8.1) encoding for asymmetric signing.
