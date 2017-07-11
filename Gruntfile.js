@@ -131,7 +131,8 @@ module.exports = function (grunt)
             },
 
             bundle: {
-                cmd: './node_modules/.bin/webpack test/fixtures/bundler.js test/fixtures/bundle.js'
+                cmd: './node_modules/.bin/webpack test/fixtures/bundler.js test/fixtures/bundle.js',
+                fail: true
             },
 
             install: {
