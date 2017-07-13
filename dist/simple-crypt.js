@@ -19,17 +19,7 @@
 // Simple symmetric and asymmetric crypto.
 // Note: Keep an eye on http://tools.ietf.org/html/draft-mcgrew-aead-aes-cbc-hmac-sha2-05
 
-function ensure_error(e)
-{
-    return e instanceof Error ? e : new Error(e);
-}
-
-var SHA1_SIZE = 20,
-    SHA256_SIZE = 32,
-    AES_BLOCK_SIZE = 16,
-    AES_128_KEY_SIZE = 16,
-
-Crypt = function (parsed_key, options)
+var Crypt = function (parsed_key, options)
 {
     "use strict";
 
@@ -89,6 +79,16 @@ Crypt.make = function (key, options, cb)
     return crypt;
 };
 
+Crypt._SHA1_SIZE = 20;
+Crypt._SHA256_SIZE = 32;
+Crypt._AES_BLOCK_SIZE = 16;
+Crypt._AES_128_KEY_SIZE = 16;
+
+Crypt._ensure_error = function (e)
+{
+    return e instanceof Error ? e : new Error(e);
+};
+
 Crypt.get_version = function ()
 {
     "use strict";
@@ -108,13 +108,13 @@ Crypt.check_version = function (data)
 Crypt.get_key_size = function ()
 {
     "use strict";
-    return AES_128_KEY_SIZE;
+    return Crypt._AES_128_KEY_SIZE;
 };
 
 Crypt.get_iv_size = function ()
 {
     "use strict";
-    return AES_BLOCK_SIZE;
+    return Crypt._AES_BLOCK_SIZE;
 };
 
 Crypt.prototype.get_key = function ()
@@ -494,6 +494,8 @@ Crypt.encrypt_stream = function (key, s, options, cb)
         options = undefined;
     }
 
+    var This = this;
+
     this.make(key,
     {
         base64: false,
@@ -510,7 +512,6 @@ Crypt.encrypt_stream = function (key, s, options, cb)
             t = new Transform(),
             frame = require('frame-stream'),
             out_s = frame.encode(options),
-            crypto = require('crypto'),
             prev_hash;
 
         t._transform = function (chunk, encoding, callback)
@@ -527,22 +528,22 @@ Crypt.encrypt_stream = function (key, s, options, cb)
                     return callback(err);
                 }
 
-                var hash = crypto.createHash('sha256');
+                var to_hash = [];
 
                 var iv = Buffer.isBuffer(ev.iv) ?
                         ev.iv : new Buffer(ev.iv, 'binary');
                 ths.push(iv);
-                hash.update(iv);
+                to_hash.push(iv);
 
                 var data = Buffer.isBuffer(ev.data) ?
                         ev.data : new Buffer(ev.data, 'binary');
                 ths.push(data);
-                hash.update(data);
+                to_hash.push(data);
 
                 var buf = new Buffer(4);
                 buf.writeUInt32BE(ev.version, 0, true);
                 ths.push(buf);
-                hash.update(buf);
+                to_hash.push(buf);
 
                 buf = Buffer.concat(
                     ev.ekey ? [new Buffer([1]),
@@ -550,9 +551,9 @@ Crypt.encrypt_stream = function (key, s, options, cb)
                                     ev.ekey : new Buffer(ev.ekey, 'binary')] :
                               [new Buffer([0])]);
                 ths.push(buf);
-                hash.update(buf);
+                to_hash.push(buf);
 
-                prev_hash = hash.digest();
+                prev_hash = This._sha256(to_hash);
 
                 callback();
             });
@@ -579,6 +580,8 @@ Crypt.decrypt_stream = function (key, s, options, cb)
         cb = options;
         options = undefined;
     }
+
+    var This = this;
  
     this.make(key,
     {
@@ -595,10 +598,8 @@ Crypt.decrypt_stream = function (key, s, options, cb)
             Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
-            buffer_equal = require('buffer-equal-constant-time'),
             in_s = frame.decode(options),
-            crypto = require('crypto'),
-            hash,
+            to_hash,
             prev_hash,
             state = 0,
             ev;
@@ -610,7 +611,7 @@ Crypt.decrypt_stream = function (key, s, options, cb)
             switch (state)
             {
                 case 0:
-                    hash = crypto.createHash('sha256');
+                    to_hash = [];
                     ev = { iv: chunk };
                     state = 1;
                     break;
@@ -650,7 +651,7 @@ Crypt.decrypt_stream = function (key, s, options, cb)
                 return callback(err);
             }
 
-            hash.update(chunk);
+            to_hash.push(chunk);
 
             if (state < 4)
             {
@@ -678,13 +679,13 @@ Crypt.decrypt_stream = function (key, s, options, cb)
                         return callback(new Error('wrong marker'));
                     }
 
-                    if (!buffer_equal(data.slice(1, 1 + SHA256_SIZE),
-                                      prev_hash))
+                    if (!This._buffer_equal(data.slice(1, 1 + Crypt._SHA256_SIZE),
+                                            prev_hash))
                     {
                         return callback(new Error('wrong order'));
                     }
                     
-                    data = data.slice(1 + SHA256_SIZE);
+                    data = data.slice(1 + Crypt._SHA256_SIZE);
                 }
                 else
                 {
@@ -696,7 +697,7 @@ Crypt.decrypt_stream = function (key, s, options, cb)
                     data = data.slice(1);
                 }
 
-                prev_hash = hash.digest();
+                prev_hash = This._sha256(to_hash);
 
                 callback(null, data);
             });
@@ -724,6 +725,8 @@ Crypt.sign_stream = function (key, s, options, cb)
         options = undefined;
     }
 
+    var This = this;
+
     this.make(key,
     {
         base64: false,
@@ -740,7 +743,6 @@ Crypt.sign_stream = function (key, s, options, cb)
             t = new Transform(),
             frame = require('frame-stream'),
             out_s = frame.encode(options),
-            crypto = require('crypto'),
             prev_hash;
 
         t._transform = function (chunk, encoding, callback)
@@ -757,24 +759,24 @@ Crypt.sign_stream = function (key, s, options, cb)
                     return callback(err);
                 }
 
-                var hash = crypto.createHash('sha256');
+                var to_hash = [];
 
                 var signature = Buffer.isBuffer(sv.signature) ?
                         sv.signature : new Buffer(sv.signature, 'binary');
                 ths.push(signature);
-                hash.update(signature);
+                to_hash.push(signature);
 
                 var data = Buffer.isBuffer(sv.data) ?
                         sv.data : new Buffer(sv.data, 'binary');
                 ths.push(data);
-                hash.update(data);
+                to_hash.push(data);
 
                 var buf = new Buffer(4);
                 buf.writeUInt32BE(sv.version, 0, true);
                 ths.push(buf);
-                hash.update(buf);
+                to_hash.push(buf);
 
-                prev_hash = hash.digest();
+                prev_hash = This._sha256(to_hash);
 
                 callback();
             });
@@ -801,6 +803,8 @@ Crypt.verify_stream = function (key, s, options, cb)
         cb = options;
         options = undefined;
     }
+
+    var This = this;
  
     this.make(key,
     {
@@ -817,10 +821,8 @@ Crypt.verify_stream = function (key, s, options, cb)
             Transform = require('stream').Transform,
             t = new Transform(),
             frame = require('frame-stream'),
-            buffer_equal = require('buffer-equal-constant-time'),
             in_s = frame.decode(options),
-            crypto = require('crypto'),
-            hash,
+            to_hash,
             prev_hash,
             state = 0,
             sv;
@@ -832,7 +834,7 @@ Crypt.verify_stream = function (key, s, options, cb)
             switch (state)
             {
                 case 0:
-                    hash = crypto.createHash('sha256');
+                    to_hash = [];
                     sv = { signature: chunk };
                     state = 1;
                     break;
@@ -859,7 +861,7 @@ Crypt.verify_stream = function (key, s, options, cb)
                 return callback(err);
             }
 
-            hash.update(chunk);
+            to_hash.push(chunk);
 
             if (state < 3)
             {
@@ -887,13 +889,13 @@ Crypt.verify_stream = function (key, s, options, cb)
                         return callback(new Error('wrong marker'));
                     }
 
-                    if (!buffer_equal(data.slice(1, 1 + SHA256_SIZE),
-                                      prev_hash))
+                    if (!This._buffer_equal(data.slice(1, 1 + Crypt._SHA256_SIZE),
+                                            prev_hash))
                     {
                         return callback(new Error('wrong order'));
                     }
                     
-                    data = data.slice(1 + SHA256_SIZE);
+                    data = data.slice(1 + Crypt._SHA256_SIZE);
                 }
                 else
                 {
@@ -905,7 +907,7 @@ Crypt.verify_stream = function (key, s, options, cb)
                     data = data.slice(1);
 				}
 
-                prev_hash = hash.digest();
+                prev_hash = This._sha256(to_hash);
 
                 callback(null, data);
             });
@@ -1026,10 +1028,24 @@ var SlowCrypt;
 /* istanbul ignore else */
 if (typeof require === 'function')
 {
-    var crypto = require('crypto'),
-        // keep an eye out for built-in constant time comparison function:
-        // https://github.com/nodejs/node/issues/3043
-        buffer_equal = require('buffer-equal-constant-time');
+    var crypto = require('crypto');
+
+    Crypt._buffer_equal = function (b1, b2)
+    {
+        return (b1.length === b2.length) && crypto.timingSafeEqual(b1, b2);
+    };
+
+    Crypt._sha256 = function (bufs)
+    {
+        var hash = crypto.createHash('sha256');
+
+        for (var i = 0; i < bufs.length; i += 1)
+        {
+            hash.update(bufs[i]);
+        }
+
+        return hash.digest();
+    };
 
     Crypt.parse_key = function (key, cb)
     {
@@ -1072,17 +1088,17 @@ if (typeof require === 'function')
             }
             else if (key && key.password)
             {
-                var salt = key.salt || crypto.randomBytes(SHA1_SIZE),
+                var salt = key.salt || crypto.randomBytes(Crypt._SHA1_SIZE),
                     hash;
                 
-                if (salt.length < SHA1_SIZE)
+                if (salt.length < Crypt._SHA1_SIZE)
                 {
                     hash = crypto.createHash('sha1');
                     hash.update(salt);
                     salt = hash.digest();
                 }
 
-                crypto.pbkdf2(key.password, salt, key.iterations, AES_128_KEY_SIZE, 'sha1',
+                crypto.pbkdf2(key.password, salt, key.iterations, Crypt._AES_128_KEY_SIZE, 'sha1',
                 function (err, derived_key)
                 {
                     if (err)
@@ -1109,7 +1125,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return cb.call(this, ensure_error(ex));
+            return cb.call(this, Crypt._ensure_error(ex));
         }
     };
 
@@ -1141,7 +1157,7 @@ if (typeof require === 'function')
 
             if (this.key.is_public)
             {
-                key = crypto.randomBytes(AES_128_KEY_SIZE);
+                key = crypto.randomBytes(Crypt._AES_128_KEY_SIZE);
 
                 ekey = crypto.publicEncrypt(
                 {
@@ -1163,7 +1179,7 @@ if (typeof require === 'function')
                 throw new Error("can't encrypt using private key");
             }
 
-            iv = iv || crypto.randomBytes(AES_BLOCK_SIZE);
+            iv = iv || crypto.randomBytes(Crypt._AES_BLOCK_SIZE);
 
             if (typeof iv === 'string')
             {
@@ -1200,7 +1216,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ensure_error(ex));
+            return f.call(this, Crypt._ensure_error(ex));
         }
 
         f.call(this, null, { iv: iv64, data: edata, ekey: ekey, version: Crypt.get_version() });
@@ -1246,12 +1262,12 @@ if (typeof require === 'function')
 
             if (this.options.check)
             {
-                jdata = ddata.slice(SHA256_SIZE);
+                jdata = ddata.slice(Crypt._SHA256_SIZE);
 
-                if (!buffer_equal(crypto.createHash('sha256')
-                                        .update(jdata)
-                                        .digest(),
-                                  ddata.slice(0, SHA256_SIZE)))
+                if (!Crypt._buffer_equal(crypto.createHash('sha256')
+                                            .update(jdata)
+                                            .digest(),
+                                         ddata.slice(0, Crypt._SHA256_SIZE)))
                 {
                     throw new Error('digest mismatch');
                 }
@@ -1265,7 +1281,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ensure_error(ex));
+            return f.call(this, Crypt._ensure_error(ex));
         }
 
         f.call(this, null, jdata);
@@ -1310,7 +1326,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ensure_error(ex));
+            return f.call(this, Crypt._ensure_error(ex));
         }
 
         f.call(this, null, { data: jdata, signature: signature, version: Crypt.get_version() });
@@ -1344,7 +1360,7 @@ if (typeof require === 'function')
             }
             else if (!this.key.is_private)
             {
-                match = buffer_equal(
+                match = Crypt._buffer_equal(
                         crypto.createHmac('sha256', this.key.key || this.key)
                                 .update(ddata).digest(),
                         this.encoding ? new Buffer(data.signature,
@@ -1367,7 +1383,7 @@ if (typeof require === 'function')
         }
         catch (ex)
         {
-            return f.call(this, ensure_error(ex));
+            return f.call(this, Crypt._ensure_error(ex));
         }
 
         f.call(this, null, jdata);
@@ -1404,7 +1420,7 @@ else
     SlowCrypt = Crypt;
 }
 
-var get_char_codes = function (s)
+SlowCrypt._get_char_codes = function (s)
 {
     "use strict";
 
@@ -1423,7 +1439,7 @@ var get_char_codes = function (s)
     return r;
 };
 
-var from_char_codes = function (a)
+SlowCrypt._from_char_codes = function (a)
 {
     "use strict";
 
@@ -1443,21 +1459,29 @@ var from_char_codes = function (a)
 };
 
 // from https://github.com/goinstant/buffer-equal-constant-time/blob/master/index.js
-var const_time_equal = function (s1, s2)
+SlowCrypt._buffer_equal = function (s1, s2)
 {
     "use strict";
     if (s1.length !== s2.length)
     {
         return false;
     }
-    var i, c = 0;
+    var i, c = 0, c1, c2;
     for (i = 0; i < s1.length; i += 1)
     {
+        c1 = s1.charCodeAt ? s1.charCodeAt(i) : s1[i];
+        c2 = s2.charCodeAt ? s2.charCodeAt(i) : s2[i];
         /*jslint bitwise: true */
-        c |= s1.charCodeAt(i) ^ s2.charCodeAt(i); // XOR
+        c |= c1 ^ c2; // XOR
         /*jslint bitwise: false */
     }
     return c === 0;
+};
+
+SlowCrypt._sha256 = function (bufs)
+{
+    var Buffer = require('buffer').Buffer;
+    return Buffer.from(rstr_sha256(Buffer.concat(bufs).toString('binary')), 'binary');
 };
 
 SlowCrypt.parse_key = function (key, cb)
@@ -1495,7 +1519,7 @@ SlowCrypt.parse_key = function (key, cb)
                 }
             }
 
-            cb2(null, get_char_codes(key));
+            cb2(null, SlowCrypt._get_char_codes(key));
         }
         else if (key && key.password)
         {
@@ -1503,12 +1527,12 @@ SlowCrypt.parse_key = function (key, cb)
 
             if (!salt)
             {
-                salt = new Uint8Array(SHA1_SIZE);
+                salt = new Uint8Array(Crypt._SHA1_SIZE);
                 window.crypto.getRandomValues(salt);
-                salt = from_char_codes(salt);
+                salt = SlowCrypt._from_char_codes(salt);
             }
 
-            if (salt.length < SHA1_SIZE)
+            if (salt.length < Crypt._SHA1_SIZE)
             {
                 salt = rstr_sha1(salt);
             }
@@ -1516,7 +1540,7 @@ SlowCrypt.parse_key = function (key, cb)
             pbkdf2 = new PBKDF2(key.password,
                                 salt,
                                 key.iterations,
-                                AES_128_KEY_SIZE);
+                                Crypt._AES_128_KEY_SIZE);
 
             pbkdf2.deriveKey(
                 key.progress || function () { return undefined; },
@@ -1543,7 +1567,7 @@ SlowCrypt.parse_key = function (key, cb)
     }
     catch (ex)
     {
-        return cb.call(this, ensure_error(ex));
+        return cb.call(this, Crypt._ensure_error(ex));
     }
 };
 
@@ -1582,10 +1606,10 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
 
         if (this.key.isPublic)
         {
-            key_arr = new Uint8Array(AES_128_KEY_SIZE);
+            key_arr = new Uint8Array(Crypt._AES_128_KEY_SIZE);
             window.crypto.getRandomValues(key_arr);
             ekey = (this.encoding ? hex2b64 : hextorstr)(
-                    this.key.encryptOAEP(from_char_codes(key_arr)));
+                    this.key.encryptOAEP(SlowCrypt._from_char_codes(key_arr)));
         }
         else
         {
@@ -1594,18 +1618,18 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
 
         if (!iv)
         {
-            iv = new Uint8Array(AES_BLOCK_SIZE);
+            iv = new Uint8Array(Crypt._AES_BLOCK_SIZE);
             window.crypto.getRandomValues(iv);
         }
 
         if (typeof iv === 'string')
         {
             iv64 = this.encoding ? window.btoa(iv) : iv;
-            iv = get_char_codes(iv);
+            iv = SlowCrypt._get_char_codes(iv);
         }
         else
         {
-            iv64 = from_char_codes(iv);
+            iv64 = SlowCrypt._from_char_codes(iv);
             if (this.encoding)
             {
                 iv64 = window.btoa(iv64);
@@ -1625,12 +1649,12 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
 
         if (this.options.check)
         {
-            jdata = from_char_codes(jdata);
-            jdata = get_char_codes(rstr_sha256(jdata) + jdata);
+            jdata = SlowCrypt._from_char_codes(jdata);
+            jdata = SlowCrypt._get_char_codes(rstr_sha256(jdata) + jdata);
         }
         else
         {
-            jdata = get_char_codes(jdata);
+            jdata = SlowCrypt._get_char_codes(jdata);
         }
 
         try
@@ -1649,7 +1673,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
             }
         }
 
-        edata = from_char_codes(edata);
+        edata = SlowCrypt._from_char_codes(edata);
 
         if (this.encoding)
         {
@@ -1658,7 +1682,7 @@ SlowCrypt.prototype.encrypt = function (data, iv, f)
     }
     catch (ex)
     {
-        return f.call(this, ensure_error(ex));
+        return f.call(this, Crypt._ensure_error(ex));
     }
 
     f.call(this, null, { iv: iv64, data: edata, ekey: ekey, version: SlowCrypt.get_version() });
@@ -1681,7 +1705,7 @@ SlowCrypt.prototype.decrypt = function (data, f)
 
         if (this.key.isPrivate)
         {
-            key_arr = get_char_codes(this.key.decryptOAEP(
+            key_arr = SlowCrypt._get_char_codes(this.key.decryptOAEP(
                 (this.encoding ? b64tohex :
                                  typeof data.ekey === 'string' ? rstrtohex :
                                                                  BAtohex)
@@ -1703,11 +1727,11 @@ SlowCrypt.prototype.decrypt = function (data, f)
 
         try
         {
-            ddata = from_char_codes(slowAES.decrypt(
-                    get_char_codes(this.encoding ? window.atob(data.data) : data.data),
+            ddata = SlowCrypt._from_char_codes(slowAES.decrypt(
+                    SlowCrypt._get_char_codes(this.encoding ? window.atob(data.data) : data.data),
                     slowAES.modeOfOperation.CBC,
                     key_arr,
-                    get_char_codes(this.encoding ? window.atob(data.iv) : data.iv)));
+                    SlowCrypt._get_char_codes(this.encoding ? window.atob(data.iv) : data.iv)));
         }
         finally
         {
@@ -1719,9 +1743,9 @@ SlowCrypt.prototype.decrypt = function (data, f)
 
         if (this.options.check)
         {
-            jdata = ddata.substr(SHA256_SIZE);
+            jdata = ddata.substr(Crypt._SHA256_SIZE);
 
-            if (!const_time_equal(rstr_sha256(jdata), ddata.substr(0, SHA256_SIZE)))
+            if (!SlowCrypt._buffer_equal(rstr_sha256(jdata), ddata.substr(0, Crypt._SHA256_SIZE)))
             {
                 throw new Error('digest mismatch');
             }
@@ -1735,7 +1759,7 @@ SlowCrypt.prototype.decrypt = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ensure_error(ex));
+        return f.call(this, Crypt._ensure_error(ex));
     }
 
     f.call(this, null, jdata);
@@ -1754,7 +1778,7 @@ SlowCrypt.prototype.sign = function (data, f)
             throw new Error("can't sign using public key");
         }
 
-        jdata = from_char_codes(this.stringify(data));
+        jdata = SlowCrypt._from_char_codes(this.stringify(data));
 
         if (this.key.isPrivate)
         {
@@ -1763,7 +1787,7 @@ SlowCrypt.prototype.sign = function (data, f)
         else
         {
             signature = rstr_hmac_sha256(
-                    from_char_codes(this.key.key || this.key),
+                    SlowCrypt._from_char_codes(this.key.key || this.key),
                     jdata);
 
             if (this.encoding)
@@ -1779,7 +1803,7 @@ SlowCrypt.prototype.sign = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ensure_error(ex));
+        return f.call(this, Crypt._ensure_error(ex));
     }
 
     f.call(this, null, { data: jdata, signature: signature, version: SlowCrypt.get_version() });
@@ -1796,7 +1820,7 @@ SlowCrypt.prototype.verify = function (data, f)
         SlowCrypt.check_version(data);
 
         ddata = this.encoding ? window.atob(data.data) :
-                                from_char_codes(data.data);
+                                SlowCrypt._from_char_codes(data.data);
 
         if (this.key.isPrivate)
         {
@@ -1815,11 +1839,11 @@ SlowCrypt.prototype.verify = function (data, f)
         }
         else
         {
-            match = const_time_equal(
-                    rstr_hmac_sha256(from_char_codes(this.key.key || this.key),
+            match = SlowCrypt._buffer_equal(
+                    rstr_hmac_sha256(SlowCrypt._from_char_codes(this.key.key || this.key),
                                      ddata),
                     this.encoding ? window.atob(data.signature) :
-                                    from_char_codes(data.signature));
+                                    SlowCrypt._from_char_codes(data.signature));
         }
 
         if (match)
@@ -1833,7 +1857,7 @@ SlowCrypt.prototype.verify = function (data, f)
     }
     catch (ex)
     {
-        return f.call(this, ensure_error(ex));
+        return f.call(this, Crypt._ensure_error(ex));
     }
 
     f.call(this, null, jdata);

@@ -156,10 +156,7 @@ module.exports = function (grunt)
 
     grunt.registerTask('lint', 'jshint');
     grunt.registerTask('test', 'mochaTest:default');
-    grunt.registerTask('test-slow', ['bgShell:bundle',
-                                     'build',
-                                     'env:slow',
-                                     'mochaTest:default']);
+    grunt.registerTask('test-slow', ['build', 'env:slow', 'mochaTest:default']);
     grunt.registerTask('test-browser', ['bgShell:bundle',
                                         'build',
                                         'bgShell:start_phantomjs',
