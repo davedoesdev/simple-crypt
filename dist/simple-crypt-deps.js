@@ -1678,6 +1678,143 @@ code.google.com/p/crypto-js/wiki/License
 }(Math));
 
 /*
+CryptoJS v3.1.2
+code.google.com/p/crypto-js
+(c) 2009-2013 by Jeff Mott. All rights reserved.
+code.google.com/p/crypto-js/wiki/License
+*/
+(function () {
+    // Shortcuts
+    var C = CryptoJS;
+    var C_lib = C.lib;
+    var WordArray = C_lib.WordArray;
+    var Hasher = C_lib.Hasher;
+    var C_algo = C.algo;
+
+    // Reusable object
+    var W = [];
+
+    /**
+     * SHA-1 hash algorithm.
+     */
+    var SHA1 = C_algo.SHA1 = Hasher.extend({
+        _doReset: function () {
+            this._hash = new WordArray.init([
+                0x67452301, 0xefcdab89,
+                0x98badcfe, 0x10325476,
+                0xc3d2e1f0
+            ]);
+        },
+
+        _doProcessBlock: function (M, offset) {
+            // Shortcut
+            var H = this._hash.words;
+
+            // Working variables
+            var a = H[0];
+            var b = H[1];
+            var c = H[2];
+            var d = H[3];
+            var e = H[4];
+
+            // Computation
+            for (var i = 0; i < 80; i++) {
+                if (i < 16) {
+                    W[i] = M[offset + i] | 0;
+                } else {
+                    var n = W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16];
+                    W[i] = (n << 1) | (n >>> 31);
+                }
+
+                var t = ((a << 5) | (a >>> 27)) + e + W[i];
+                if (i < 20) {
+                    t += ((b & c) | (~b & d)) + 0x5a827999;
+                } else if (i < 40) {
+                    t += (b ^ c ^ d) + 0x6ed9eba1;
+                } else if (i < 60) {
+                    t += ((b & c) | (b & d) | (c & d)) - 0x70e44324;
+                } else /* if (i < 80) */ {
+                    t += (b ^ c ^ d) - 0x359d3e2a;
+                }
+
+                e = d;
+                d = c;
+                c = (b << 30) | (b >>> 2);
+                b = a;
+                a = t;
+            }
+
+            // Intermediate hash value
+            H[0] = (H[0] + a) | 0;
+            H[1] = (H[1] + b) | 0;
+            H[2] = (H[2] + c) | 0;
+            H[3] = (H[3] + d) | 0;
+            H[4] = (H[4] + e) | 0;
+        },
+
+        _doFinalize: function () {
+            // Shortcuts
+            var data = this._data;
+            var dataWords = data.words;
+
+            var nBitsTotal = this._nDataBytes * 8;
+            var nBitsLeft = data.sigBytes * 8;
+
+            // Add padding
+            dataWords[nBitsLeft >>> 5] |= 0x80 << (24 - nBitsLeft % 32);
+            dataWords[(((nBitsLeft + 64) >>> 9) << 4) + 14] = Math.floor(nBitsTotal / 0x100000000);
+            dataWords[(((nBitsLeft + 64) >>> 9) << 4) + 15] = nBitsTotal;
+            data.sigBytes = dataWords.length * 4;
+
+            // Hash final blocks
+            this._process();
+
+            // Return final computed hash
+            return this._hash;
+        },
+
+        clone: function () {
+            var clone = Hasher.clone.call(this);
+            clone._hash = this._hash.clone();
+
+            return clone;
+        }
+    });
+
+    /**
+     * Shortcut function to the hasher's object interface.
+     *
+     * @param {WordArray|string} message The message to hash.
+     *
+     * @return {WordArray} The hash.
+     *
+     * @static
+     *
+     * @example
+     *
+     *     var hash = CryptoJS.SHA1('message');
+     *     var hash = CryptoJS.SHA1(wordArray);
+     */
+    C.SHA1 = Hasher._createHelper(SHA1);
+
+    /**
+     * Shortcut function to the HMAC's object interface.
+     *
+     * @param {WordArray|string} message The message to hash.
+     * @param {WordArray|string} key The secret key.
+     *
+     * @return {WordArray} The HMAC.
+     *
+     * @static
+     *
+     * @example
+     *
+     *     var hmac = CryptoJS.HmacSHA1(message, key);
+     */
+    C.HmacSHA1 = Hasher._createHmacHelper(SHA1);
+}());
+
+/*
  * JavaScript implementation of Password-Based Key Derivation Function 2
  * (PBKDF2) as defined in RFC 2898.
  * Version 1.5 
@@ -3910,24 +4047,42 @@ function oaep_mgf1_arr(seed, len, hash)
     return mask;
 }
 
-// PKCS#1 (OAEP) pad input string s to n bytes, and return a bigint
-function oaep_pad(s, n, hash, hashLen)
-{
-    if (!hash)
-    {
-        hash = rstr_sha1;
-        hashLen = 20;
+/**
+ * PKCS#1 (OAEP) pad input string s to n bytes, and return a bigint
+ * @name oaep_pad
+ * @param s raw string of message
+ * @param n key length of RSA key
+ * @param hash JavaScript function to calculate raw hash value from raw string or algorithm name (ex. "SHA1") 
+ * @param hashLen byte length of resulted hash value (ex. 20 for SHA1)
+ * @return {BigInteger} BigInteger object of resulted PKCS#1 OAEP padded message
+ * @description
+ * This function calculates OAEP padded message from original message.<br/>
+ * NOTE: Since jsrsasign 6.2.0, 'hash' argument can accept an algorithm name such as "sha1".
+ * @example
+ * oaep_pad("aaa", 128) &rarr; big integer object // SHA-1 by default
+ * oaep_pad("aaa", 128, function(s) {...}, 20);
+ * oaep_pad("aaa", 128, "sha1");
+ */
+function oaep_pad(s, n, hash, hashLen) {
+    var MD = KJUR.crypto.MessageDigest;
+    var Util = KJUR.crypto.Util;
+    var algName = null;
+
+    if (!hash) hash = "sha1";
+
+    if (typeof hash === "string") {
+	algName = MD.getCanonicalAlgName(hash);
+	hashLen = MD.getHashLength(algName);
+        hash = function(s) { return hextorstr(Util.hashString(s, algName)); };
     }
 
-    if (s.length + 2 * hashLen + 2 > n)
-    {
+    if (s.length + 2 * hashLen + 2 > n) {
         throw "Message too long for RSA";
     }
 
     var PS = '', i;
 
-    for (i = 0; i < n - s.length - 2 * hashLen - 2; i += 1)
-    {
+    for (i = 0; i < n - s.length - 2 * hashLen - 2; i += 1) {
         PS += '\x00';
     }
 
@@ -3938,16 +4093,14 @@ function oaep_pad(s, n, hash, hashLen)
     var dbMask = oaep_mgf1_arr(seed, DB.length, hash);
     var maskedDB = [];
 
-    for (i = 0; i < DB.length; i += 1)
-    {
+    for (i = 0; i < DB.length; i += 1) {
         maskedDB[i] = DB.charCodeAt(i) ^ dbMask.charCodeAt(i);
     }
 
     var seedMask = oaep_mgf1_arr(maskedDB, seed.length, hash);
     var maskedSeed = [0];
 
-    for (i = 0; i < seed.length; i += 1)
-    {
+    for (i = 0; i < seed.length; i += 1) {
         maskedSeed[i + 1] = seed[i] ^ seedMask.charCodeAt(i);
     }
 
@@ -3967,19 +4120,18 @@ function RSAKey() {
 }
 
 // Set the public key fields N and e from hex strings
-function RSASetPublic(N,E) {
-  this.isPublic = true;
-  if (typeof N !== "string") 
-  {
-    this.n = N;
-    this.e = E;
-  }
-  else if(N != null && E != null && N.length > 0 && E.length > 0) {
-    this.n = parseBigInt(N,16);
-    this.e = parseInt(E,16);
-  }
-  else
-    alert("Invalid RSA public key");
+function RSASetPublic(N, E) {
+    this.isPublic = true;
+    this.isPrivate = false;
+    if (typeof N !== "string") {
+	this.n = N;
+	this.e = E;
+    } else if(N != null && E != null && N.length > 0 && E.length > 0) {
+	this.n = parseBigInt(N,16);
+	this.e = parseInt(E,16);
+    } else {
+	throw "Invalid RSA public key";
+    }
 }
 
 // Perform raw public operation on "x": return x^e (mod n)
@@ -3999,7 +4151,7 @@ function RSAEncrypt(text) {
 
 // Return the PKCS#1 OAEP RSA encryption of "text" as an even-length hex string
 function RSAEncryptOAEP(text, hash, hashLen) {
-  var m = oaep_pad(text, (this.n.bitLength()+7)>>3, hash, hashLen);
+  var m = oaep_pad(text, (this.n.bitLength() + 7) >> 3, hash, hashLen);
   if(m == null) return null;
   var c = this.doPublic(m);
   if(c == null) return null;
@@ -4076,33 +4228,50 @@ function oaep_mgf1_str(seed, len, hash)
     return mask;
 }
 
-// Undo PKCS#1 (OAEP) padding and, if valid, return the plaintext
-function oaep_unpad(d, n, hash, hashLen)
-{
-    if (!hash)
-    {
-        hash = rstr_sha1;
-        hashLen = 20;
+/**
+ * Undo PKCS#1 (OAEP) padding and, if valid, return the plaintext
+ * @name oaep_unpad
+ * @param {BigInteger} d BigInteger object of OAEP padded message
+ * @param n byte length of RSA key (i.e. 128 when RSA 1024bit)
+ * @param hash JavaScript function to calculate raw hash value from raw string or algorithm name (ex. "SHA1") 
+ * @param hashLen byte length of resulted hash value (i.e. 20 for SHA1)
+ * @return {String} raw string of OAEP unpadded message
+ * @description
+ * This function do unpadding OAEP padded message then returns an original message.<br/>
+ * NOTE: Since jsrsasign 6.2.0, 'hash' argument can accept an algorithm name such as "sha1".
+ * @example
+ * // DEFAULT(SHA1)
+ * bi1 = oaep_pad("aaa", 128);
+ * oaep_unpad(bi1, 128) &rarr; "aaa" // SHA-1 by default
+ */
+function oaep_unpad(d, n, hash, hashLen) {
+    var MD = KJUR.crypto.MessageDigest;
+    var Util = KJUR.crypto.Util;
+    var algName = null;
+
+    if (!hash) hash = "sha1";
+
+    if (typeof hash === "string") {
+	algName = MD.getCanonicalAlgName(hash);
+	hashLen = MD.getHashLength(algName);
+        hash = function(s) { return hextorstr(Util.hashString(s, algName)); };
     }
 
     d = d.toByteArray();
 
     var i;
 
-    for (i = 0; i < d.length; i += 1)
-    {
+    for (i = 0; i < d.length; i += 1) {
         d[i] &= 0xff;
     }
 
-    while (d.length < n)
-    {
+    while (d.length < n) {
         d.unshift(0);
     }
 
     d = String.fromCharCode.apply(String, d);
 
-    if (d.length < 2 * hashLen + 2)
-    {
+    if (d.length < 2 * hashLen + 2) {
         throw "Cipher too short";
     }
 
@@ -4112,25 +4281,22 @@ function oaep_unpad(d, n, hash, hashLen)
     var seedMask = oaep_mgf1_str(maskedDB, hashLen, hash);
     var seed = [], i;
 
-    for (i = 0; i < maskedSeed.length; i += 1)
-    {
+    for (i = 0; i < maskedSeed.length; i += 1) {
         seed[i] = maskedSeed.charCodeAt(i) ^ seedMask.charCodeAt(i);
     }
 
     var dbMask = oaep_mgf1_str(String.fromCharCode.apply(String, seed),
-                           d.length - hashLen, hash);
+                               d.length - hashLen, hash);
 
     var DB = [];
 
-    for (i = 0; i < maskedDB.length; i += 1)
-    {
+    for (i = 0; i < maskedDB.length; i += 1) {
         DB[i] = maskedDB.charCodeAt(i) ^ dbMask.charCodeAt(i);
     }
 
     DB = String.fromCharCode.apply(String, DB);
 
-    if (DB.substr(0, hashLen) !== hash(''))
-    {
+    if (DB.substr(0, hashLen) !== hash('')) {
         throw "Hash mismatch";
     }
 
@@ -4139,8 +4305,7 @@ function oaep_unpad(d, n, hash, hashLen)
     var first_one = DB.indexOf('\x01');
     var last_zero = (first_one != -1) ? DB.substr(0, first_one).lastIndexOf('\x00') : -1;
 
-    if (last_zero + 1 != first_one)
-    {
+    if (last_zero + 1 != first_one) {
         throw "Malformed data";
     }
 
@@ -4168,6 +4333,7 @@ function RSASetPrivate(N,E,D) {
 // Set the private key fields N, e, d and CRT params from hex strings
 function RSASetPrivateEx(N,E,D,P,Q,DP,DQ,C) {
   this.isPrivate = true;
+  this.isPublic = false;
   if (N == null) throw "RSASetPrivateEx N == null";
   if (E == null) throw "RSASetPrivateEx E == null";
   if (N.length == 0) throw "RSASetPrivateEx N.length == 0";
@@ -4276,15 +4442,15 @@ RSAKey.prototype.decrypt = RSADecrypt;
 RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
 //RSAKey.prototype.b64_decrypt = RSAB64Decrypt;
 
-/*! asn1hex-1.1.6.js (c) 2012-2016 Kenji Urushima | kjur.github.com/jsrsasign/license
+/* asn1hex-1.2.0.js (c) 2012-2017 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * asn1hex.js - Hexadecimal represented ASN.1 string library
  *
- * Copyright (c) 2010-2016 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2010-2017 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
- * http://kjur.github.com/jsrsasign/license/
+ * https://kjur.github.io/jsrsasign/license/
  *
  * The above copyright and license notice shall be 
  * included in all copies or substantial portions of the Software.
@@ -4294,8 +4460,8 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * @fileOverview
  * @name asn1hex-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version asn1hex 1.1.6 (2015-Jun-11)
- * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
+ * @version asn1hex 1.2.0 (2017-Jun-24)
+ * @license <a href="https://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
 
 /*
@@ -4323,11 +4489,12 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * <ul>
  * <li><b>ACCESS BY POSITION</b>
  *   <ul>
- *   <li>{@link ASN1HEX.getHexOfTLV_AtObj} - get ASN.1 TLV at specified position</li>
- *   <li>{@link ASN1HEX.getHexOfV_AtObj} - get ASN.1 V at specified position</li>
- *   <li>{@link ASN1HEX.getHexOfL_AtObj} - get hexadecimal ASN.1 L at specified position</li>
- *   <li>{@link ASN1HEX.getIntOfL_AtObj} - get integer ASN.1 L at specified position</li>
- *   <li>{@link ASN1HEX.getStartPosOfV_AtObj} - get ASN.1 V position from its ASN.1 TLV position</li>
+ *   <li>{@link ASN1HEX.getTLV} - get ASN.1 TLV at specified position</li>
+ *   <li>{@link ASN1HEX.getV} - get ASN.1 V at specified position</li>
+ *   <li>{@link ASN1HEX.getVlen} - get integer ASN.1 L at specified position</li>
+ *   <li>{@link ASN1HEX.getVidx} - get ASN.1 V position from its ASN.1 TLV position</li>
+ *   <li>{@link ASN1HEX.getL} - get hexadecimal ASN.1 L at specified position</li>
+ *   <li>{@link ASN1HEX.getLblen} - get byte length for ASN.1 L(length) bytes</li>
  *   </ul>
  * </li>
  * <li><b>ACCESS FOR CHILD ITEM</b>
@@ -4339,9 +4506,9 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * </li>
  * <li><b>ACCESS NESTED ASN.1 STRUCTURE</b>
  *   <ul>
- *   <li>{@link ASN1HEX.getDecendantHexTLVByNthList} - get ASN.1 TLV at specified list index</li>
- *   <li>{@link ASN1HEX.getDecendantHexVByNthList} - get ASN.1 V at specified list index</li>
- *   <li>{@link ASN1HEX.getDecendantIndexByNthList} - get index at specified list index</li>
+ *   <li>{@link ASN1HEX.getTLVbyList} - get ASN.1 TLV at specified list index</li>
+ *   <li>{@link ASN1HEX.getVbyList} - get ASN.1 V at specified nth list index with checking expected tag</li>
+ *   <li>{@link ASN1HEX.getIdxbyList} - get index at specified list index</li>
  *   </ul>
  * </li>
  * <li><b>UTILITIES</b>
@@ -4354,245 +4521,273 @@ RSAKey.prototype.decryptOAEP = RSADecryptOAEP;
  * </ul>
  */
 var ASN1HEX = new function() {
-    /**
-     * get byte length for ASN.1 L(length) bytes
-     * @name getByteLengthOfL_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return byte length for ASN.1 L(length) bytes
-     */
-    this.getByteLengthOfL_AtObj = function(s, pos) {
-        if (s.substring(pos + 2, pos + 3) != '8') return 1;
-        var i = parseInt(s.substring(pos + 3, pos + 4));
-        if (i == 0) return -1;          // length octet '80' indefinite length
-        if (0 < i && i < 10) return i + 1;      // including '8?' octet;
-        return -2;                              // malformed format
-    };
-
-    /**
-     * get hexadecimal string for ASN.1 L(length) bytes
-     * @name getHexOfL_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return {String} hexadecimal string for ASN.1 L(length) bytes
-     */
-    this.getHexOfL_AtObj = function(s, pos) {
-        var len = this.getByteLengthOfL_AtObj(s, pos);
-        if (len < 1) return '';
-        return s.substring(pos + 2, pos + 2 + len * 2);
-    };
-
-    //   getting ASN.1 length value at the position 'idx' of
-    //   hexa decimal string 's'.
-    //
-    //   f('3082025b02...', 0) ... 82025b ... ???
-    //   f('020100', 0) ... 01 ... 1
-    //   f('0203001...', 0) ... 03 ... 3
-    //   f('02818003...', 0) ... 8180 ... 128
-    /**
-     * get integer value of ASN.1 length for ASN.1 data
-     * @name getIntOfL_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return ASN.1 L(length) integer value
-     */
-    this.getIntOfL_AtObj = function(s, pos) {
-        var hLength = this.getHexOfL_AtObj(s, pos);
-        if (hLength == '') return -1;
-        var bi;
-        if (parseInt(hLength.substring(0, 1)) < 8) {
-            bi = new BigInteger(hLength, 16);
-        } else {
-            bi = new BigInteger(hLength.substring(2), 16);
-        }
-        return bi.intValue();
-    };
-
-    /**
-     * get ASN.1 value starting string position for ASN.1 object refered by index 'idx'.
-     * @name getStartPosOfV_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     */
-    this.getStartPosOfV_AtObj = function(s, pos) {
-        var l_len = this.getByteLengthOfL_AtObj(s, pos);
-        if (l_len < 0) return l_len;
-        return pos + (l_len + 1) * 2;
-    };
-
-    /**
-     * get hexadecimal string of ASN.1 V(value)
-     * @name getHexOfV_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return {String} hexadecimal string of ASN.1 value.
-     */
-    this.getHexOfV_AtObj = function(s, pos) {
-        var pos1 = this.getStartPosOfV_AtObj(s, pos);
-        var len = this.getIntOfL_AtObj(s, pos);
-        return s.substring(pos1, pos1 + len * 2);
-    };
-
-    /**
-     * get hexadecimal string of ASN.1 TLV at
-     * @name getHexOfTLV_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return {String} hexadecimal string of ASN.1 TLV.
-     * @since 1.1
-     */
-    this.getHexOfTLV_AtObj = function(s, pos) {
-        var hT = s.substr(pos, 2);
-        var hL = this.getHexOfL_AtObj(s, pos);
-        var hV = this.getHexOfV_AtObj(s, pos);
-        return hT + hL + hV;
-    };
-
-    /**
-     * get next sibling starting index for ASN.1 object string
-     * @name getPosOfNextSibling_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} pos string index
-     * @return next sibling starting index for ASN.1 object string
-     */
-    this.getPosOfNextSibling_AtObj = function(s, pos) {
-        var pos1 = this.getStartPosOfV_AtObj(s, pos);
-        var len = this.getIntOfL_AtObj(s, pos);
-        return pos1 + len * 2;
-    };
-
-    /**
-     * get array of indexes of child ASN.1 objects
-     * @name getPosArrayOfChildren_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} s hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} start string index of ASN.1 object
-     * @return {Array of Number} array of indexes for childen of ASN.1 objects
-     */
-    this.getPosArrayOfChildren_AtObj = function(h, pos) {
-        var a = new Array();
-        var p0 = this.getStartPosOfV_AtObj(h, pos);
-        a.push(p0);
-
-        var len = this.getIntOfL_AtObj(h, pos);
-        var p = p0;
-        var k = 0;
-        while (1) {
-            var pNext = this.getPosOfNextSibling_AtObj(h, p);
-            if (pNext == null || (pNext - p0  >= (len * 2))) break;
-            if (k >= 200) break;
-            
-            a.push(pNext);
-            p = pNext;
-            
-            k++;
-        }
-        
-        return a;
-    };
-
-    /**
-     * get string index of nth child object of ASN.1 object refered by h, idx
-     * @name getNthChildIndex_AtObj
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} h hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} idx start string index of ASN.1 object
-     * @param {Number} nth for child
-     * @return {Number} string index of nth child.
-     * @since 1.1
-     */
-    this.getNthChildIndex_AtObj = function(h, idx, nth) {
-        var a = this.getPosArrayOfChildren_AtObj(h, idx);
-        return a[nth];
-    };
-
-    // ========== decendant methods ==============================
-    /**
-     * get string index of nth child object of ASN.1 object refered by h, idx
-     * @name getDecendantIndexByNthList
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} h hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} currentIndex start string index of ASN.1 object
-     * @param {Array of Number} nthList array list of nth
-     * @return {Number} string index refered by nthList
-     * @since 1.1
-     * @example
-     * The "nthList" is a index list of structured ASN.1 object
-     * reference. Here is a sample structure and "nthList"s which
-     * refers each objects.
-     *
-     * SQUENCE               - 
-     *   SEQUENCE            - [0]
-     *     IA5STRING 000     - [0, 0]
-     *     UTF8STRING 001    - [0, 1]
-     *   SET                 - [1]
-     *     IA5STRING 010     - [1, 0]
-     *     UTF8STRING 011    - [1, 1]
-     */
-    this.getDecendantIndexByNthList = function(h, currentIndex, nthList) {
-        if (nthList.length == 0) {
-            return currentIndex;
-        }
-        var firstNth = nthList.shift();
-        var a = this.getPosArrayOfChildren_AtObj(h, currentIndex);
-        return this.getDecendantIndexByNthList(h, a[firstNth], nthList);
-    };
-
-    /**
-     * get hexadecimal string of ASN.1 TLV refered by current index and nth index list.
-     * @name getDecendantHexTLVByNthList
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} h hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} currentIndex start string index of ASN.1 object
-     * @param {Array of Number} nthList array list of nth
-     * @return {Number} hexadecimal string of ASN.1 TLV refered by nthList
-     * @since 1.1
-     */
-    this.getDecendantHexTLVByNthList = function(h, currentIndex, nthList) {
-        var idx = this.getDecendantIndexByNthList(h, currentIndex, nthList);
-        return this.getHexOfTLV_AtObj(h, idx);
-    };
-
-    /**
-     * get hexadecimal string of ASN.1 V refered by current index and nth index list.
-     * @name getDecendantHexVByNthList
-     * @memberOf ASN1HEX
-     * @function
-     * @param {String} h hexadecimal string of ASN.1 DER encoded data
-     * @param {Number} currentIndex start string index of ASN.1 object
-     * @param {Array of Number} nthList array list of nth
-     * @return {Number} hexadecimal string of ASN.1 V refered by nthList
-     * @since 1.1
-     */
-    this.getDecendantHexVByNthList = function(h, currentIndex, nthList) {
-        var idx = this.getDecendantIndexByNthList(h, currentIndex, nthList);
-        return this.getHexOfV_AtObj(h, idx);
-    };
 };
 
-/*
- * @since asn1hex 1.1.4
+/**
+ * get byte length for ASN.1 L(length) bytes<br/>
+ * @name getLblen
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @return byte length for ASN.1 L(length) bytes
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ * @example
+ * ASN1HEX.getLblen('020100', 0) &rarr; 1 for '01'
+ * ASN1HEX.getLblen('020200', 0) &rarr; 1 for '02'
+ * ASN1HEX.getLblen('02818003...', 0) &rarr; 2 for '8180'
+ * ASN1HEX.getLblen('0282025b03...', 0) &rarr; 3 for '82025b'
+ * ASN1HEX.getLblen('0280020100...', 0) &rarr; -1 for '80' BER indefinite length
+ * ASN1HEX.getLblen('02ffab...', 0) &rarr; -2 for malformed ASN.1 length
  */
-ASN1HEX.getVbyList = function(h, currentIndex, nthList, checkingTag) {
-    var idx = this.getDecendantIndexByNthList(h, currentIndex, nthList);
+ASN1HEX.getLblen = function(s, idx) {
+    if (s.substr(idx + 2, 1) != '8') return 1;
+    var i = parseInt(s.substr(idx + 3, 1));
+    if (i == 0) return -1;             // length octet '80' indefinite length
+    if (0 < i && i < 10) return i + 1; // including '8?' octet;
+    return -2;                         // malformed format
+};
+
+/**
+ * get hexadecimal string for ASN.1 L(length) bytes<br/>
+ * @name getL
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index to get L of ASN.1 object
+ * @return {String} hexadecimal string for ASN.1 L(length) bytes
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+ASN1HEX.getL = function(s, idx) {
+    var len = ASN1HEX.getLblen(s, idx);
+    if (len < 1) return '';
+    return s.substr(idx + 2, len * 2);
+};
+
+/**
+ * get integer value of ASN.1 length for ASN.1 data<br/>
+ * @name getVblen
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @return ASN.1 L(length) integer value
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+/*
+ getting ASN.1 length value at the position 'idx' of
+ hexa decimal string 's'.
+ f('3082025b02...', 0) ... 82025b ... ???
+ f('020100', 0) ... 01 ... 1
+ f('0203001...', 0) ... 03 ... 3
+ f('02818003...', 0) ... 8180 ... 128
+ */
+ASN1HEX.getVblen = function(s, idx) {
+    var hLen, bi;
+    hLen = ASN1HEX.getL(s, idx);
+    if (hLen == '') return -1;
+    if (hLen.substr(0, 1) === '8') {
+        bi = new BigInteger(hLen.substr(2), 16);
+    } else {
+        bi = new BigInteger(hLen, 16);
+    }
+    return bi.intValue();
+};
+
+/**
+ * get ASN.1 value starting string position for ASN.1 object refered by index 'idx'.
+ * @name getVidx
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+ASN1HEX.getVidx = function(s, idx) {
+    var l_len = ASN1HEX.getLblen(s, idx);
+    if (l_len < 0) return l_len;
+    return idx + (l_len + 1) * 2;
+};
+
+/**
+ * get hexadecimal string of ASN.1 V(value)<br/>
+ * @name getV
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @return {String} hexadecimal string of ASN.1 value.
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+ASN1HEX.getV = function(s, idx) {
+    var idx1 = ASN1HEX.getVidx(s, idx);
+    var blen = ASN1HEX.getVblen(s, idx);
+    return s.substr(idx1, blen * 2);
+};
+
+/**
+ * get hexadecimal string of ASN.1 TLV at<br/>
+ * @name getTLV
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @return {String} hexadecimal string of ASN.1 TLV.
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+ASN1HEX.getTLV = function(s, idx) {
+    return s.substr(idx, 2) + ASN1HEX.getL(s, idx) + ASN1HEX.getV(s, idx);
+};
+
+// ========== sibling methods ================================
+
+/**
+ * get next sibling starting index for ASN.1 object string<br/>
+ * @name getNextSiblingIdx
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} s hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx string index
+ * @return next sibling starting index for ASN.1 object string
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ * @example
+ * SEQUENCE { INTEGER 3, INTEGER 4 }
+ * 3006
+ *     020103 :idx=4
+ *           020104 :next sibling idx=10
+ * getNextSiblingIdx("3006020103020104", 4) & rarr 10
+ */
+ASN1HEX.getNextSiblingIdx = function(s, idx) {
+    var idx1 = ASN1HEX.getVidx(s, idx);
+    var blen = ASN1HEX.getVblen(s, idx);
+    return idx1 + blen * 2;
+};
+
+// ========== children methods ===============================
+/**
+ * get array of string indexes of child ASN.1 objects<br/>
+ * @name getChildIdx
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} h hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} pos start string index of ASN.1 object
+ * @return {Array of Number} array of indexes for childen of ASN.1 objects
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ * @description
+ * This method returns array of integers for a concatination of ASN.1 objects
+ * in a ASN.1 value. As for BITSTRING, one byte of unusedbits is skipped.
+ * As for other ASN.1 simple types such as INTEGER, OCTET STRING or PRINTABLE STRING,
+ * it returns a array of a string index of its ASN.1 value.<br/>
+ * NOTE: Since asn1hex 1.1.7 of jsrsasign 6.1.2, Encapsulated BitString is supported.
+ * @example
+ * ASN1HEX.getChildIdx("0203012345", 0) &rArr; [4] // INTEGER 012345
+ * ASN1HEX.getChildIdx("1303616161", 0) &rArr; [4] // PrintableString aaa
+ * ASN1HEX.getChildIdx("030300ffff", 0) &rArr; [6] // BITSTRING ffff (unusedbits=00a)
+ * ASN1HEX.getChildIdx("3006020104020105", 0) &rArr; [4, 10] // SEQUENCE(INT4,INT5)
+ */
+ASN1HEX.getChildIdx = function(h, pos) {
+    var _ASN1HEX = ASN1HEX;
+    var a = new Array();
+    var p0 = _ASN1HEX.getVidx(h, pos);
+    if (h.substr(pos, 2) == "03") {
+	a.push(p0 + 2); // BITSTRING value without unusedbits
+    } else {
+	a.push(p0);
+    }
+
+    var blen = _ASN1HEX.getVblen(h, pos);
+    var p = p0;
+    var k = 0;
+    while (1) {
+        var pNext = _ASN1HEX.getNextSiblingIdx(h, p);
+        if (pNext == null || (pNext - p0  >= (blen * 2))) break;
+        if (k >= 200) break;
+            
+        a.push(pNext);
+        p = pNext;
+            
+        k++;
+    }
+    
+    return a;
+};
+
+/**
+ * get string index of nth child object of ASN.1 object refered by h, idx<br/>
+ * @name getNthChildIdx
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} h hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} idx start string index of ASN.1 object
+ * @param {Number} nth for child
+ * @return {Number} string index of nth child.
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ */
+ASN1HEX.getNthChildIdx = function(h, idx, nth) {
+    var a = ASN1HEX.getChildIdx(h, idx);
+    return a[nth];
+};
+
+// ========== decendant methods ==============================
+/**
+ * get string index of nth child object of ASN.1 object refered by h, idx<br/>
+ * @name getIdxbyList
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} h hexadecimal string of ASN.1 DER encoded data
+ * @param {Number} currentIndex start string index of ASN.1 object
+ * @param {Array of Number} nthList array list of nth
+ * @param {String} checkingTag (OPTIONAL) string of expected ASN.1 tag for nthList 
+ * @return {Number} string index refered by nthList
+ * @since jsrsasign 7.1.4 asn1hex 1.1.10.
+ * @description
+ * @example
+ * The "nthList" is a index list of structured ASN.1 object
+ * reference. Here is a sample structure and "nthList"s which
+ * refers each objects.
+ *
+ * SQUENCE               - 
+ *   SEQUENCE            - [0]
+ *     IA5STRING 000     - [0, 0]
+ *     UTF8STRING 001    - [0, 1]
+ *   SET                 - [1]
+ *     IA5STRING 010     - [1, 0]
+ *     UTF8STRING 011    - [1, 1]
+ */
+ASN1HEX.getIdxbyList = function(h, currentIndex, nthList, checkingTag) {
+    var _ASN1HEX = ASN1HEX;
+    var firstNth, a;
+    if (nthList.length == 0) {
+	if (checkingTag !== undefined) {
+            if (h.substr(currentIndex, 2) !== checkingTag) {
+		throw "checking tag doesn't match: " + 
+                    h.substr(currentIndex, 2) + "!=" + checkingTag;
+            }
+	}
+        return currentIndex;
+    }
+    firstNth = nthList.shift();
+    a = _ASN1HEX.getChildIdx(h, currentIndex);
+    return _ASN1HEX.getIdxbyList(h, a[firstNth], nthList, checkingTag);
+};
+
+/**
+ * get ASN.1 TLV by nthList<br/>
+ * @name getTLVbyList
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} h hexadecimal string of ASN.1 structure
+ * @param {Integer} currentIndex string index to start searching in hexadecimal string "h"
+ * @param {Array} nthList array of nth list index
+ * @param {String} checkingTag (OPTIONAL) string of expected ASN.1 tag for nthList 
+ * @since jsrsasign 7.1.4 asn1hex 1.1.10
+ * @description
+ * This static method is to get a ASN.1 value which specified "nthList" position
+ * with checking expected tag "checkingTag".
+ */
+ASN1HEX.getTLVbyList = function(h, currentIndex, nthList, checkingTag) {
+    var _ASN1HEX = ASN1HEX;
+    var idx = _ASN1HEX.getIdxbyList(h, currentIndex, nthList);
     if (idx === undefined) {
         throw "can't find nthList object";
     }
@@ -4602,11 +4797,42 @@ ASN1HEX.getVbyList = function(h, currentIndex, nthList, checkingTag) {
                 h.substr(idx,2) + "!=" + checkingTag;
         }
     }
-    return this.getHexOfV_AtObj(h, idx);
+    return _ASN1HEX.getTLV(h, idx);
 };
 
 /**
- * get OID string from hexadecimal encoded value
+ * get ASN.1 value by nthList<br/>
+ * @name getVbyList
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} h hexadecimal string of ASN.1 structure
+ * @param {Integer} currentIndex string index to start searching in hexadecimal string "h"
+ * @param {Array} nthList array of nth list index
+ * @param {String} checkingTag (OPTIONAL) string of expected ASN.1 tag for nthList 
+ * @param {Boolean} removeUnusedbits (OPTIONAL) flag for remove first byte for value (DEFAULT false)
+ * @since asn1hex 1.1.4
+ * @description
+ * This static method is to get a ASN.1 value which specified "nthList" position
+ * with checking expected tag "checkingTag".
+ * NOTE: 'removeUnusedbits' flag has been supported since
+ * jsrsasign 7.1.14 asn1hex 1.1.10.
+ */
+ASN1HEX.getVbyList = function(h, currentIndex, nthList, checkingTag, removeUnusedbits) {
+    var _ASN1HEX = ASN1HEX;
+    var idx, v;
+    idx = _ASN1HEX.getIdxbyList(h, currentIndex, nthList, checkingTag);
+    
+    if (idx === undefined) {
+        throw "can't find nthList object";
+    }
+
+    v = _ASN1HEX.getV(h, idx);
+    if (removeUnusedbits === true) v = v.substr(2);
+    return v;
+};
+
+/**
+ * get OID string from hexadecimal encoded value<br/>
  * @name hextooidstr
  * @memberOf ASN1HEX
  * @function
@@ -4652,14 +4878,14 @@ ASN1HEX.hextooidstr = function(hex) {
 };
 
 /**
- * get string of simple ASN.1 dump from hexadecimal ASN.1 data
+ * get string of simple ASN.1 dump from hexadecimal ASN.1 data<br/>
  * @name dump
  * @memberOf ASN1HEX
  * @function
- * @param {String} hex hexadecmal string of ASN.1 data
- * @param {Array} associative array of flags for dump (OPTION)
+ * @param {Object} hexOrObj hexadecmal string of ASN.1 data or ASN1Object object
+ * @param {Array} flags associative array of flags for dump (OPTION)
  * @param {Number} idx string index for starting dump (OPTION)
- * @param {String} indent string (OPTION)
+ * @param {String} indent indent string (OPTION)
  * @return {String} string of simple ASN.1 dump
  * @since jsrsasign 4.8.3 asn1hex 1.1.6
  * @description
@@ -4680,26 +4906,35 @@ ASN1HEX.hextooidstr = function(hex) {
  *   </ul>
  * </li>
  * </ul>
+ * NOTE1: Argument {@link KJUR.asn1.ASN1Object} object is supported since
+ * jsrsasign 6.2.4 asn1hex 1.0.8
  * @example
- * // ASN.1 INTEGER
+ * // 1) ASN.1 INTEGER
  * ASN1HEX.dump('0203012345')
  * &darr;
  * INTEGER 012345
  *
- * // ASN.1 Object Identifier
+ * // 2) ASN.1 Object Identifier
  * ASN1HEX.dump('06052b0e03021a')
  * &darr;
  * ObjectIdentifier sha1 (1 3 14 3 2 26)
  *
- * // ASN.1 SEQUENCE
+ * // 3) ASN.1 SEQUENCE
  * ASN1HEX.dump('3006020101020102')
  * &darr;
  * SEQUENCE
  *   INTEGER 01
  *   INTEGER 02
  *
- * // ASN.1 DUMP FOR X.509 CERTIFICATE
- * ASN1HEX.dump(X509.pemToHex(certPEM))
+ * // 4) ASN.1 SEQUENCE since jsrsasign 6.2.4
+ * o = KJUR.asn1.ASN1Util.newObject({seq: [{int: 1}, {int: 2}]});
+ * ASN1HEX.dump(o)
+ * &darr;
+ * SEQUENCE
+ *   INTEGER 01
+ *   INTEGER 02
+ * // 5) ASN.1 DUMP FOR X.509 CERTIFICATE
+ * ASN1HEX.dump(pemtohex(certPEM))
  * &darr;
  * SEQUENCE
  *   SEQUENCE
@@ -4716,7 +4951,16 @@ ASN1HEX.hextooidstr = function(hex) {
  *           PrintableString 'US'
  *             :
  */
-ASN1HEX.dump = function(hex, flags, idx, indent) {
+ASN1HEX.dump = function(hexOrObj, flags, idx, indent) {
+    var _ASN1HEX = ASN1HEX;
+    var _getV = _ASN1HEX.getV;
+    var _dump = _ASN1HEX.dump;
+    var _getChildIdx = _ASN1HEX.getChildIdx;
+
+    var hex = hexOrObj;
+    if (hexOrObj instanceof KJUR.asn1.ASN1Object)
+	hex = hexOrObj.getEncodedHex();
+
     var _skipLongHex = function(hex, limitNumOctet) {
 	if (hex.length <= limitNumOctet * 2) {
 	    return hex;
@@ -4734,7 +4978,7 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
     var skipLongHex = flags.ommit_long_octet;
 
     if (hex.substr(idx, 2) == "01") {
-	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	var v = _getV(hex, idx);
 	if (v == "00") {
 	    return indent + "BOOLEAN FALSE\n";
 	} else {
@@ -4742,18 +4986,18 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	}
     }
     if (hex.substr(idx, 2) == "02") {
-	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	var v = _getV(hex, idx);
 	return indent + "INTEGER " + _skipLongHex(v, skipLongHex) + "\n";
     }
     if (hex.substr(idx, 2) == "03") {
-	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	var v = _getV(hex, idx);
 	return indent + "BITSTRING " + _skipLongHex(v, skipLongHex) + "\n";
     }
     if (hex.substr(idx, 2) == "04") {
-	var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
-	if (ASN1HEX.isASN1HEX(v)) {
+	var v = _getV(hex, idx);
+	if (_ASN1HEX.isASN1HEX(v)) {
 	    var s = indent + "OCTETSTRING, encapsulates\n";
-	    s = s + ASN1HEX.dump(v, flags, 0, indent + "  ");
+	    s = s + _dump(v, flags, 0, indent + "  ");
 	    return s;
 	} else {
 	    return indent + "OCTETSTRING " + _skipLongHex(v, skipLongHex) + "\n";
@@ -4763,7 +5007,7 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	return indent + "NULL\n";
     }
     if (hex.substr(idx, 2) == "06") {
-	var hV = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	var hV = _getV(hex, idx);
         var oidDot = KJUR.asn1.ASN1Util.oidHexToInt(hV);
         var oidName = KJUR.asn1.x509.OID.oid2name(oidDot);
 	var oidSpc = oidDot.replace(/\./g, ' ');
@@ -4774,22 +5018,22 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	}
     }
     if (hex.substr(idx, 2) == "0c") {
-	return indent + "UTF8String '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+	return indent + "UTF8String '" + hextoutf8(_getV(hex, idx)) + "'\n";
     }
     if (hex.substr(idx, 2) == "13") {
-	return indent + "PrintableString '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+	return indent + "PrintableString '" + hextoutf8(_getV(hex, idx)) + "'\n";
     }
     if (hex.substr(idx, 2) == "14") {
-	return indent + "TeletexString '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+	return indent + "TeletexString '" + hextoutf8(_getV(hex, idx)) + "'\n";
     }
     if (hex.substr(idx, 2) == "16") {
-	return indent + "IA5String '" + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "'\n";
+	return indent + "IA5String '" + hextoutf8(_getV(hex, idx)) + "'\n";
     }
     if (hex.substr(idx, 2) == "17") {
-	return indent + "UTCTime " + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "\n";
+	return indent + "UTCTime " + hextoutf8(_getV(hex, idx)) + "\n";
     }
     if (hex.substr(idx, 2) == "18") {
-	return indent + "GeneralizedTime " + hextoutf8(ASN1HEX.getHexOfV_AtObj(hex, idx)) + "\n";
+	return indent + "GeneralizedTime " + hextoutf8(_getV(hex, idx)) + "\n";
     }
     if (hex.substr(idx, 2) == "30") {
 	if (hex.substr(idx, 4) == "3000") {
@@ -4797,32 +5041,29 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	}
 
 	var s = indent + "SEQUENCE\n";
-	var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+	var aIdx = _getChildIdx(hex, idx);
 
 	var flagsTemp = flags;
 	
 	if ((aIdx.length == 2 || aIdx.length == 3) &&
 	    hex.substr(aIdx[0], 2) == "06" &&
 	    hex.substr(aIdx[aIdx.length - 1], 2) == "04") { // supposed X.509v3 extension
-	    var oidHex = ASN1HEX.getHexOfV_AtObj(hex, aIdx[0]);
-	    var oidDot = KJUR.asn1.ASN1Util.oidHexToInt(oidHex);
-	    var oidName = KJUR.asn1.x509.OID.oid2name(oidDot);
-
+	    var oidName = _ASN1HEX.oidname(_getV(hex, aIdx[0]));
 	    var flagsClone = JSON.parse(JSON.stringify(flags));
 	    flagsClone.x509ExtName = oidName;
 	    flagsTemp = flagsClone;
 	}
 	
 	for (var i = 0; i < aIdx.length; i++) {
-	    s = s + ASN1HEX.dump(hex, flagsTemp, aIdx[i], indent + "  ");
+	    s = s + _dump(hex, flagsTemp, aIdx[i], indent + "  ");
 	}
 	return s;
     }
     if (hex.substr(idx, 2) == "31") {
 	var s = indent + "SET\n";
-	var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+	var aIdx = _getChildIdx(hex, idx);
 	for (var i = 0; i < aIdx.length; i++) {
-	    s = s + ASN1HEX.dump(hex, flags, aIdx[i], indent + "  ");
+	    s = s + _dump(hex, flags, aIdx[i], indent + "  ");
 	}
 	return s;
     }
@@ -4831,13 +5072,13 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	var tagNumber = tag & 31;
 	if ((tag & 32) != 0) { // structured tag
 	    var s = indent + "[" + tagNumber + "]\n";
-	    var aIdx = ASN1HEX.getPosArrayOfChildren_AtObj(hex, idx);
+	    var aIdx = _getChildIdx(hex, idx);
 	    for (var i = 0; i < aIdx.length; i++) {
-		s = s + ASN1HEX.dump(hex, flags, aIdx[i], indent + "  ");
+		s = s + _dump(hex, flags, aIdx[i], indent + "  ");
 	    }
 	    return s;
 	} else { // primitive tag
-	    var v = ASN1HEX.getHexOfV_AtObj(hex, idx);
+	    var v = _getV(hex, idx);
 	    if (v.substr(0, 8) == "68747470") { // http
 		v = hextoutf8(v);
 	    }
@@ -4850,7 +5091,8 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
 	    return s;
 	}
     }
-    return indent + "UNKNOWN(" + hex.substr(idx, 2) + ") " + ASN1HEX.getHexOfV_AtObj(hex, idx) + "\n";
+    return indent + "UNKNOWN(" + hex.substr(idx, 2) + ") " + 
+	   _getV(hex, idx) + "\n";
 };
 
 /**
@@ -4871,28 +5113,56 @@ ASN1HEX.dump = function(hex, flags, idx, indent) {
  * ASN1HEX.isASN1HEX('fa3bcd') &rarr; false // WRONG FOR ASN.1
  */
 ASN1HEX.isASN1HEX = function(hex) {
+    var _ASN1HEX = ASN1HEX;
     if (hex.length % 2 == 1) return false;
 
-    var intL = ASN1HEX.getIntOfL_AtObj(hex, 0);
+    var intL = _ASN1HEX.getVblen(hex, 0);
     var tV = hex.substr(0, 2);
-    var lV = ASN1HEX.getHexOfL_AtObj(hex, 0);
+    var lV = _ASN1HEX.getL(hex, 0);
     var hVLength = hex.length - tV.length - lV.length;
     if (hVLength == intL * 2) return true;
 
     return false;
 };
 
-/*! base64x-1.1.6 (c) 2012-2015 Kenji Urushima | kjur.github.com/jsrsasign/license
+/**
+ * get hexacedimal string from PEM format data<br/>
+ * @name oidname
+ * @memberOf ASN1HEX
+ * @function
+ * @param {String} oidDotOrHex number dot notation(i.e. 1.2.3) or hexadecimal string for OID
+ * @return {String} name for OID
+ * @since jsrsasign 7.2.0 asn1hex 1.1.11
+ * @description
+ * This static method gets a OID name for
+ * a specified string of number dot notation (i.e. 1.2.3) or
+ * hexadecimal string.
+ * @example
+ * ASN1HEX.oidname("2.5.29.37") &rarr; extKeyUsage
+ * ASN1HEX.oidname("551d25") &rarr; extKeyUsage
+ * ASN1HEX.oidname("0.1.2.3") &rarr; 0.1.2.3 // unknown
+ */
+ASN1HEX.oidname = function(oidDotOrHex) {
+    var _KJUR_asn1 = KJUR.asn1;
+    if (KJUR.lang.String.isHex(oidDotOrHex))
+	oidDotOrHex = _KJUR_asn1.ASN1Util.oidHexToInt(oidDotOrHex);
+    var name = _KJUR_asn1.x509.OID.oid2name(oidDotOrHex);
+    if (name === "") name = oidDotOrHex;
+    return name;
+};
+
+
+/* base64x-1.1.12 (c) 2012-2017 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * base64x.js - Base64url and supplementary functions for Tom Wu's base64.js library
  *
- * version: 1.1.6 (2015-Nov-11)
+ * version: 1.1.12 (2017-Jun-03)
  *
- * Copyright (c) 2012-2015 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2012-2017 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
- * http://kjur.github.com/jsjws/license/
+ * https://kjur.github.io/jsjws/license/
  *
  * The above copyright and license notice shall be 
  * included in all copies or substantial portions of the Software.
@@ -4905,10 +5175,38 @@ ASN1HEX.isASN1HEX = function(hex) {
  * @fileOverview
  * @name base64x-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version asn1 1.1.6 (2015-Nov-11)
+ * @version jsrsasign 7.2.1 base64x 1.1.12 (2017-Jun-03)
  * @since jsrsasign 2.1
- * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
+ * @license <a href="https://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
+
+var KJUR;
+if (typeof KJUR == "undefined" || !KJUR) KJUR = {};
+if (typeof KJUR.lang == "undefined" || !KJUR.lang) KJUR.lang = {};
+
+/**
+ * String and its utility class <br/>
+ * This class provides some static utility methods for string.
+ * @class String and its utility class
+ * @author Kenji Urushima
+ * @version 1.0 (2016-Aug-05)
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @description
+ * <br/>
+ * This class provides static methods for string utility.
+ * <dl>
+ * <dt><b>STRING TYPE CHECKERS</b>
+ * <dd>
+ * <ul>
+ * <li>{@link KJUR.lang.String.isInteger} - check whether argument is an integer</li>
+ * <li>{@link KJUR.lang.String.isHex} - check whether argument is a hexadecimal string</li>
+ * <li>{@link KJUR.lang.String.isBase64} - check whether argument is a Base64 encoded string</li>
+ * <li>{@link KJUR.lang.String.isBase64URL} - check whether argument is a Base64URL encoded string</li>
+ * <li>{@link KJUR.lang.String.isIntegerArray} - check whether argument is an array of integers</li>
+ * </ul>
+ * </dl>
+ */
+KJUR.lang.String = function() {};
 
 /**
  * Base64URL and supplementary functions for Tom Wu's base64.js library.<br/>
@@ -4931,8 +5229,8 @@ ASN1HEX.isASN1HEX = function(hex) {
  * @author Kenji Urushima
  * @version 1.1 (07 May 2012)
  * @requires base64.js
- * @see <a href="http://kjur.github.com/jsjws/">'jwjws'(JWS JavaScript Library) home page http://kjur.github.com/jsjws/</a>
- * @see <a href="http://kjur.github.com/jsrsasigns/">'jwrsasign'(RSA Sign JavaScript Library) home page http://kjur.github.com/jsrsasign/</a>
+ * @see <a href="https://kjur.github.io/jsjws/">'jwjws'(JWS JavaScript Library) home page https://kjur.github.io/jsjws/</a>
+ * @see <a href="https://kjur.github.io/jsrsasigns/">'jwrsasign'(RSA Sign JavaScript Library) home page https://kjur.github.io/jsrsasign/</a>
  */
 function Base64x() {
 }
@@ -4940,6 +5238,8 @@ function Base64x() {
 // ==== string / byte array ================================
 /**
  * convert a string to an array of character codes
+ * @name stoBA
+ * @function
  * @param {String} s
  * @return {Array of Numbers} 
  */
@@ -4953,6 +5253,8 @@ function stoBA(s) {
 
 /**
  * convert an array of character codes to a string
+ * @name BAtos
+ * @function
  * @param {Array of Numbers} a array of character codes
  * @return {String} s
  */
@@ -4967,6 +5269,8 @@ function BAtos(a) {
 // ==== byte array / hex ================================
 /**
  * convert an array of bytes(Number) to hexadecimal string.<br/>
+ * @name BAtohex
+ * @function
  * @param {Array of Numbers} a array of bytes
  * @return {String} hexadecimal string
  */
@@ -4984,6 +5288,8 @@ function BAtohex(a) {
 /**
  * convert a ASCII string to a hexadecimal string of ASCII codes.<br/>
  * NOTE: This can't be used for non ASCII characters.
+ * @name stohex
+ * @function
  * @param {s} s ASCII string
  * @return {String} hexadecimal string
  */
@@ -4995,6 +5301,8 @@ function stohex(s) {
 /**
  * convert a ASCII string to a Base64 encoded string.<br/>
  * NOTE: This can't be used for non ASCII characters.
+ * @name stob64
+ * @function
  * @param {s} s ASCII string
  * @return {String} Base64 encoded string
  */
@@ -5006,6 +5314,8 @@ function stob64(s) {
 /**
  * convert a ASCII string to a Base64URL encoded string.<br/>
  * NOTE: This can't be used for non ASCII characters.
+ * @name stob64u
+ * @function
  * @param {s} s ASCII string
  * @return {String} Base64URL encoded string
  */
@@ -5016,6 +5326,8 @@ function stob64u(s) {
 /**
  * convert a Base64URL encoded string to a ASCII string.<br/>
  * NOTE: This can't be used for Base64URL encoded non ASCII characters.
+ * @name b64utos
+ * @function
  * @param {s} s Base64URL encoded string
  * @return {String} ASCII string
  */
@@ -5026,9 +5338,12 @@ function b64utos(s) {
 // ==== base64 / base64url ================================
 /**
  * convert a Base64 encoded string to a Base64URL encoded string.<br/>
- * Example: "ab+c3f/==" &rarr; "ab-c3f_"
+ * @name b64tob64u
+ * @function
  * @param {String} s Base64 encoded string
  * @return {String} Base64URL encoded string
+ * @example
+ * b64tob64u("ab+c3f/==") &rarr; "ab-c3f_"
  */
 function b64tob64u(s) {
     s = s.replace(/\=/g, "");
@@ -5039,9 +5354,12 @@ function b64tob64u(s) {
 
 /**
  * convert a Base64URL encoded string to a Base64 encoded string.<br/>
- * Example: "ab-c3f_" &rarr; "ab+c3f/=="
+ * @name b64utob64
+ * @function
  * @param {String} s Base64URL encoded string
  * @return {String} Base64 encoded string
+ * @example
+ * b64utob64("ab-c3f_") &rarr; "ab+c3f/=="
  */
 function b64utob64(s) {
     if (s.length % 4 == 2) s = s + "==";
@@ -5054,6 +5372,8 @@ function b64utob64(s) {
 // ==== hex / base64url ================================
 /**
  * convert a hexadecimal string to a Base64URL encoded string.<br/>
+ * @name hextob64u
+ * @function
  * @param {String} s hexadecimal string
  * @return {String} Base64URL encoded string
  * @description
@@ -5068,6 +5388,8 @@ function hextob64u(s) {
 
 /**
  * convert a Base64URL encoded string to a hexadecimal string.<br/>
+ * @name b64utohex
+ * @function
  * @param {String} s Base64URL encoded string
  * @return {String} hexadecimal string
  */
@@ -5075,42 +5397,42 @@ function b64utohex(s) {
     return b64tohex(b64utob64(s));
 }
 
-var utf8tob64u, b64utoutf8;
-
-if (typeof Buffer === 'function')
-{
-  utf8tob64u = function (s)
-  {
-    return b64tob64u(new Buffer(s, 'utf8').toString('base64'));
-  };
-
-  b64utoutf8 = function (s)
-  {
-    return new Buffer(b64utob64(s), 'base64').toString('utf8');
-  };
-}
-else
-{
 // ==== utf8 / base64url ================================
+
 /**
  * convert a UTF-8 encoded string including CJK or Latin to a Base64URL encoded string.<br/>
+ * @name utf8tob64u
+ * @function
  * @param {String} s UTF-8 encoded string
  * @return {String} Base64URL encoded string
  * @since 1.1
  */
-  utf8tob64u = function (s)
-  {
-    return hextob64u(uricmptohex(encodeURIComponentAll(s)));
-  };
 
 /**
  * convert a Base64URL encoded string to a UTF-8 encoded string including CJK or Latin.<br/>
+ * @name b64utoutf8
+ * @function
  * @param {String} s Base64URL encoded string
  * @return {String} UTF-8 encoded string
  * @since 1.1
  */
-  b64utoutf8 = function (s)
-  {
+
+var utf8tob64u, b64utoutf8;
+
+if (typeof Buffer === 'function') {
+  utf8tob64u = function (s) {
+    return b64tob64u(new Buffer(s, 'utf8').toString('base64'));
+  };
+
+  b64utoutf8 = function (s) {
+    return new Buffer(b64utob64(s), 'base64').toString('utf8');
+  };
+} else {
+  utf8tob64u = function (s) {
+    return hextob64u(uricmptohex(encodeURIComponentAll(s)));
+  };
+
+  b64utoutf8 = function (s) {
     return decodeURIComponent(hextouricmp(b64utohex(s)));
   };
 }
@@ -5118,6 +5440,8 @@ else
 // ==== utf8 / base64url ================================
 /**
  * convert a UTF-8 encoded string including CJK or Latin to a Base64 encoded string.<br/>
+ * @name utf8tob64
+ * @function
  * @param {String} s UTF-8 encoded string
  * @return {String} Base64 encoded string
  * @since 1.1.1
@@ -5128,6 +5452,8 @@ function utf8tob64(s) {
 
 /**
  * convert a Base64 encoded string to a UTF-8 encoded string including CJK or Latin.<br/>
+ * @name b64toutf8
+ * @function
  * @param {String} s Base64 encoded string
  * @return {String} UTF-8 encoded string
  * @since 1.1.1
@@ -5139,6 +5465,8 @@ function b64toutf8(s) {
 // ==== utf8 / hex ================================
 /**
  * convert a UTF-8 encoded string including CJK or Latin to a hexadecimal encoded string.<br/>
+ * @name utf8tohex
+ * @function
  * @param {String} s UTF-8 encoded string
  * @return {String} hexadecimal encoded string
  * @since 1.1.1
@@ -5151,6 +5479,8 @@ function utf8tohex(s) {
  * convert a hexadecimal encoded string to a UTF-8 encoded string including CJK or Latin.<br/>
  * Note that when input is improper hexadecimal string as UTF-8 string, this function returns
  * 'null'.
+ * @name hextoutf8
+ * @function
  * @param {String} s hexadecimal encoded string
  * @return {String} UTF-8 encoded string or null
  * @since 1.1.1
@@ -5161,6 +5491,8 @@ function hextoutf8(s) {
 
 /**
  * convert a hexadecimal encoded string to raw string including non printable characters.<br/>
+ * @name hextorstr
+ * @function
  * @param {String} s hexadecimal encoded string
  * @return {String} raw string
  * @since 1.1.2
@@ -5177,6 +5509,8 @@ function hextorstr(sHex) {
 
 /**
  * convert a raw string including non printable characters to hexadecimal encoded string.<br/>
+ * @name rstrtohex
+ * @function
  * @param {String} s raw string
  * @return {String} hexadecimal encoded string
  * @since 1.1.2
@@ -5193,15 +5527,39 @@ function rstrtohex(s) {
 
 // ==== hex / b64nl =======================================
 
-/*
- * since base64x 1.1.3
+/**
+ * convert a hexadecimal string to Base64 encoded string<br/>
+ * @name hextob64
+ * @function
+ * @param {String} s hexadecimal string
+ * @return {String} resulted Base64 encoded string
+ * @since base64x 1.1.3
+ * @description
+ * This function converts from a hexadecimal string to Base64 encoded
+ * string without new lines.
+ * @example
+ * hextob64("616161") &rarr; "YWFh"
  */
 function hextob64(s) {
     return hex2b64(s);
 }
 
-/*
- * since base64x 1.1.3
+/**
+ * convert a hexadecimal string to Base64 encoded string with new lines<br/>
+ * @name hextob64nl
+ * @function
+ * @param {String} s hexadecimal string
+ * @return {String} resulted Base64 encoded string with new lines
+ * @since base64x 1.1.3
+ * @description
+ * This function converts from a hexadecimal string to Base64 encoded
+ * string with new lines for each 64 characters. This is useful for
+ * PEM encoded file.
+ * @example
+ * hextob64nl("123456789012345678901234567890123456789012345678901234567890")
+ * &rarr;
+ * MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4 // new line
+ * OTAxMjM0NTY3ODkwCg==
  */
 function hextob64nl(s) {
     var b64 = hextob64(s);
@@ -5210,8 +5568,25 @@ function hextob64nl(s) {
     return b64nl;
 }
 
-/*
- * since base64x 1.1.3
+/**
+ * convert a Base64 encoded string with new lines to a hexadecimal string<br/>
+ * @name b64nltohex
+ * @function
+ * @param {String} s Base64 encoded string with new lines
+ * @return {String} hexadecimal string
+ * @since base64x 1.1.3
+ * @description
+ * This function converts from a Base64 encoded
+ * string with new lines to a hexadecimal string.
+ * This is useful to handle PEM encoded file.
+ * This function removes any non-Base64 characters (i.e. not 0-9,A-Z,a-z,\,+,=)
+ * including new line.
+ * @example
+ * hextob64nl(
+ * "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4\r\n" +
+ * "OTAxMjM0NTY3ODkwCg==\r\n")
+ * &rarr;
+ * "123456789012345678901234567890123456789012345678901234567890"
  */
 function b64nltohex(s) {
     var b64 = s.replace(/[^0-9A-Za-z\/+=]*/g, '');
@@ -5219,9 +5594,288 @@ function b64nltohex(s) {
     return hex;
 } 
 
+// ==== hex / pem =========================================
+
+/**
+ * get PEM string from hexadecimal data and header string
+ * @name hextopem
+ * @function
+ * @param {String} dataHex hexadecimal string of PEM body
+ * @param {String} pemHeader PEM header string (ex. 'RSA PRIVATE KEY')
+ * @return {String} PEM formatted string of input data
+ * @since jsrasign 7.2.1 base64x 1.1.12
+ * @description
+ * This function converts a hexadecimal string to a PEM string with
+ * a specified header. Its line break will be CRLF("\r\n").
+ * @example
+ * hextopem('616161', 'RSA PRIVATE KEY') &rarr;
+ * -----BEGIN PRIVATE KEY-----
+ * YWFh
+ * -----END PRIVATE KEY-----
+ */
+function hextopem(dataHex, pemHeader) {
+    var pemBody = hextob64nl(dataHex);
+    return "-----BEGIN " + pemHeader + "-----\r\n" + 
+        pemBody + 
+        "\r\n-----END " + pemHeader + "-----\r\n";
+}
+
+/**
+ * get hexacedimal string from PEM format data<br/>
+ * @name pemtohex
+ * @function
+ * @param {String} s PEM formatted string
+ * @param {String} sHead PEM header string without BEGIN/END(OPTION)
+ * @return {String} hexadecimal string data of PEM contents
+ * @since jsrsasign 7.2.1 base64x 1.1.12
+ * @description
+ * This static method gets a hexacedimal string of contents 
+ * from PEM format data. You can explicitly specify PEM header 
+ * by sHead argument. 
+ * Any space characters such as white space or new line
+ * will be omitted.<br/>
+ * NOTE: Now {@link KEYUTIL.getHexFromPEM} and {@link X509.pemToHex}
+ * have been deprecated since jsrsasign 7.2.1. 
+ * Please use this method instead.
+ * @example
+ * pemtohex("-----BEGIN PUBLIC KEY...") &rarr; "3082..."
+ * pemtohex("-----BEGIN CERTIFICATE...", "CERTIFICATE") &rarr; "3082..."
+ * pemtohex(" \r\n-----BEGIN DSA PRIVATE KEY...") &rarr; "3082..."
+ */
+function pemtohex(s, sHead) {
+    if (s.indexOf("-----BEGIN ") == -1)
+        throw "can't find PEM header: " + sHead;
+
+    if (sHead !== undefined) {
+        s = s.replace("-----BEGIN " + sHead + "-----", "");
+        s = s.replace("-----END " + sHead + "-----", "");
+    } else {
+        s = s.replace(/-----BEGIN [^-]+-----/, '');
+        s = s.replace(/-----END [^-]+-----/, '');
+    }
+    return b64nltohex(s);
+}
+
+// ==== hex / ArrayBuffer =================================
+
+/**
+ * convert a hexadecimal string to an ArrayBuffer<br/>
+ * @name hextoArrayBuffer
+ * @function
+ * @param {String} hex hexadecimal string
+ * @return {ArrayBuffer} ArrayBuffer
+ * @since jsrsasign 6.1.4 base64x 1.1.8
+ * @description
+ * This function converts from a hexadecimal string to an ArrayBuffer.
+ * @example
+ * hextoArrayBuffer("fffa01") &rarr; ArrayBuffer of [255, 250, 1]
+ */
+function hextoArrayBuffer(hex) {
+    if (hex.length % 2 != 0) throw "input is not even length";
+    if (hex.match(/^[0-9A-Fa-f]+$/) == null) throw "input is not hexadecimal";
+
+    var buffer = new ArrayBuffer(hex.length / 2);
+    var view = new DataView(buffer);
+
+    for (var i = 0; i < hex.length / 2; i++) {
+	view.setUint8(i, parseInt(hex.substr(i * 2, 2), 16));
+    }
+
+    return buffer;
+}
+
+// ==== ArrayBuffer / hex =================================
+
+/**
+ * convert an ArrayBuffer to a hexadecimal string<br/>
+ * @name ArrayBuffertohex
+ * @function
+ * @param {ArrayBuffer} buffer ArrayBuffer
+ * @return {String} hexadecimal string
+ * @since jsrsasign 6.1.4 base64x 1.1.8
+ * @description
+ * This function converts from an ArrayBuffer to a hexadecimal string.
+ * @example
+ * var buffer = new ArrayBuffer(3);
+ * var view = new DataView(buffer);
+ * view.setUint8(0, 0xfa);
+ * view.setUint8(1, 0xfb);
+ * view.setUint8(2, 0x01);
+ * ArrayBuffertohex(buffer) &rarr; "fafb01"
+ */
+function ArrayBuffertohex(buffer) {
+    var hex = "";
+    var view = new DataView(buffer);
+
+    for (var i = 0; i < buffer.byteLength; i++) {
+	hex += ("00" + view.getUint8(i).toString(16)).slice(-2);
+    }
+
+    return hex;
+}
+
+// ==== zulu / int =================================
+/**
+ * GeneralizedTime or UTCTime string to milliseconds from Unix origin<br>
+ * @name zulutomsec
+ * @function
+ * @param {String} s GeneralizedTime or UTCTime string (ex. 20170412235959.384Z)
+ * @return {Number} milliseconds from Unix origin time (i.e. Jan 1, 1970 0:00:00 UTC)
+ * @since jsrsasign 7.1.3 base64x 1.1.9
+ * @description
+ * This function converts from GeneralizedTime string (i.e. YYYYMMDDHHmmSSZ) or
+ * UTCTime string (i.e. YYMMDDHHmmSSZ) to milliseconds from Unix origin time
+ * (i.e. Jan 1 1970 0:00:00 UTC). 
+ * Argument string may have fraction of seconds and
+ * its length is one or more digits such as "20170410235959.1234567Z".
+ * As for UTCTime, if year "YY" is equal or less than 49 then it is 20YY.
+ * If year "YY" is equal or greater than 50 then it is 19YY.
+ * @example
+ * zulutomsec(  "071231235959Z")       &rarr; 1199145599000 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutomsec(  "071231235959.1Z")     &rarr; 1199145599100 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutomsec(  "071231235959.12345Z") &rarr; 1199145599123 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutomsec("20071231235959Z")       &rarr; 1199145599000 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutomsec(  "931231235959Z")       &rarr; -410227201000 #Mon, 31 Dec 1956 23:59:59 GMT
+ */
+function zulutomsec(s) {
+    var year, month, day, hour, min, sec, msec, d;
+    var sYear, sFrac, sMsec, matchResult;
+
+    matchResult = s.match(/^(\d{2}|\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(|\.\d+)Z$/);
+
+    if (matchResult) {
+        sYear = matchResult[1];
+	year = parseInt(sYear);
+        if (sYear.length === 2) {
+	    if (50 <= year && year < 100) {
+		year = 1900 + year;
+	    } else if (0 <= year && year < 50) {
+		year = 2000 + year;
+	    }
+	}
+	month = parseInt(matchResult[2]) - 1;
+	day = parseInt(matchResult[3]);
+	hour = parseInt(matchResult[4]);
+	min = parseInt(matchResult[5]);
+	sec = parseInt(matchResult[6]);
+	msec = 0;
+
+	sFrac = matchResult[7];
+	if (sFrac !== "") {
+	    sMsec = (sFrac.substr(1) + "00").substr(0, 3); // .12 -> 012
+	    msec = parseInt(sMsec);
+	}
+	return Date.UTC(year, month, day, hour, min, sec, msec);
+    }
+    throw "unsupported zulu format: " + s;
+}
+
+/**
+ * GeneralizedTime or UTCTime string to seconds from Unix origin<br>
+ * @name zulutosec
+ * @function
+ * @param {String} s GeneralizedTime or UTCTime string (ex. 20170412235959.384Z)
+ * @return {Number} seconds from Unix origin time (i.e. Jan 1, 1970 0:00:00 UTC)
+ * @since jsrsasign 7.1.3 base64x 1.1.9
+ * @description
+ * This function converts from GeneralizedTime string (i.e. YYYYMMDDHHmmSSZ) or
+ * UTCTime string (i.e. YYMMDDHHmmSSZ) to seconds from Unix origin time
+ * (i.e. Jan 1 1970 0:00:00 UTC). Argument string may have fraction of seconds 
+ * however result value will be omitted.
+ * As for UTCTime, if year "YY" is equal or less than 49 then it is 20YY.
+ * If year "YY" is equal or greater than 50 then it is 19YY.
+ * @example
+ * zulutosec(  "071231235959Z")       &rarr; 1199145599 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutosec(  "071231235959.1Z")     &rarr; 1199145599 #Mon, 31 Dec 2007 23:59:59 GMT
+ * zulutosec("20071231235959Z")       &rarr; 1199145599 #Mon, 31 Dec 2007 23:59:59 GMT
+ */
+function zulutosec(s) {
+    var msec = zulutomsec(s);
+    return ~~(msec / 1000);
+}
+
+// ==== zulu / Date =================================
+
+/**
+ * GeneralizedTime or UTCTime string to Date object<br>
+ * @name zulutodate
+ * @function
+ * @param {String} s GeneralizedTime or UTCTime string (ex. 20170412235959.384Z)
+ * @return {Date} Date object for specified time
+ * @since jsrsasign 7.1.3 base64x 1.1.9
+ * @description
+ * This function converts from GeneralizedTime string (i.e. YYYYMMDDHHmmSSZ) or
+ * UTCTime string (i.e. YYMMDDHHmmSSZ) to Date object.
+ * Argument string may have fraction of seconds and
+ * its length is one or more digits such as "20170410235959.1234567Z".
+ * As for UTCTime, if year "YY" is equal or less than 49 then it is 20YY.
+ * If year "YY" is equal or greater than 50 then it is 19YY.
+ * @example
+ * zulutodate(  "071231235959Z").toUTCString()   &rarr; "Mon, 31 Dec 2007 23:59:59 GMT"
+ * zulutodate(  "071231235959.1Z").toUTCString() &rarr; "Mon, 31 Dec 2007 23:59:59 GMT"
+ * zulutodate("20071231235959Z").toUTCString()   &rarr; "Mon, 31 Dec 2007 23:59:59 GMT"
+ * zulutodate(  "071231235959.34").getMilliseconds() &rarr; 340
+ */
+function zulutodate(s) {
+    return new Date(zulutomsec(s));
+}
+
+// ==== Date / zulu =================================
+
+/**
+ * Date object to zulu time string<br>
+ * @name datetozulu
+ * @function
+ * @param {Date} d Date object for specified time
+ * @param {Boolean} flagUTCTime if this is true year will be YY otherwise YYYY
+ * @param {Boolean} flagMilli if this is true result concludes milliseconds
+ * @return {String} GeneralizedTime or UTCTime string (ex. 20170412235959.384Z)
+ * @since jsrsasign 7.2.0 base64x 1.1.11
+ * @description
+ * This function converts from Date object to GeneralizedTime string (i.e. YYYYMMDDHHmmSSZ) or
+ * UTCTime string (i.e. YYMMDDHHmmSSZ).
+ * As for UTCTime, if year "YY" is equal or less than 49 then it is 20YY.
+ * If year "YY" is equal or greater than 50 then it is 19YY.
+ * If flagMilli is true its result concludes milliseconds such like
+ * "20170520235959.42Z". 
+ * @example
+ * d = new Date(Date.UTC(2017,4,20,23,59,59,670));
+ * datetozulu(d) &rarr; "20170520235959Z"
+ * datetozulu(d, true) &rarr; "170520235959Z"
+ * datetozulu(d, false, true) &rarr; "20170520235959.67Z"
+ */
+function datetozulu(d, flagUTCTime, flagMilli) {
+    var s;
+    var year = d.getUTCFullYear();
+    if (flagUTCTime) {
+	if (year < 1950 || 2049 < year) 
+	    throw "not proper year for UTCTime: " + year;
+	s = ("" + year).slice(-2);
+    } else {
+	s = ("000" + year).slice(-4);
+    }
+    s += ("0" + (d.getUTCMonth() + 1)).slice(-2);
+    s += ("0" + d.getUTCDate()).slice(-2);
+    s += ("0" + d.getUTCHours()).slice(-2);
+    s += ("0" + d.getUTCMinutes()).slice(-2);
+    s += ("0" + d.getUTCSeconds()).slice(-2);
+    if (flagMilli) {
+	var milli = d.getUTCMilliseconds();
+	if (milli !== 0) {
+	    milli = ("00" + milli).slice(-3);
+	    milli = milli.replace(/0+$/g, "");
+	    s += "." + milli;
+	}
+    }
+    s += "Z";
+    return s;
+}
+
 // ==== URIComponent / hex ================================
 /**
  * convert a URLComponent string such like "%67%68" to a hexadecimal string.<br/>
+ * @name uricmptohex
+ * @function
  * @param {String} s URIComponent string such like "%67%68"
  * @return {String} hexadecimal string
  * @since 1.1
@@ -5232,6 +5886,8 @@ function uricmptohex(s) {
 
 /**
  * convert a hexadecimal string to a URLComponent string such like "%67%68".<br/>
+ * @name hextouricmp
+ * @function
  * @param {String} s hexadecimal string
  * @return {String} URIComponent string such like "%67%68"
  * @since 1.1
@@ -5247,6 +5903,8 @@ function hextouricmp(s) {
  * converted to "%xx" format by builtin 'encodeURIComponent()' function.
  * However this 'encodeURIComponentAll()' function will convert 
  * all of characters into "%xx" format.
+ * @name encodeURIComponentAll
+ * @function
  * @param {String} s hexadecimal string
  * @return {String} URIComponent string such like "%67%68"
  * @since 1.1
@@ -5269,6 +5927,8 @@ function encodeURIComponentAll(u8) {
 /**
  * convert all DOS new line("\r\n") to UNIX new line("\n") in 
  * a String "s".
+ * @name newline_toUnix
+ * @function
  * @param {String} s string 
  * @return {String} converted string
  */
@@ -5280,6 +5940,8 @@ function newline_toUnix(s) {
 /**
  * convert all UNIX new line("\r\n") to DOS new line("\n") in 
  * a String "s".
+ * @name newline_toDos
+ * @function
  * @param {String} s string 
  * @return {String} converted string
  */
@@ -5289,10 +5951,159 @@ function newline_toDos(s) {
     return s;
 }
 
+// ==== string type checker ===================
+
+/**
+ * check whether a string is an integer string or not<br/>
+ * @name isInteger
+ * @memberOf KJUR.lang.String
+ * @function
+ * @static
+ * @param {String} s input string
+ * @return {Boolean} true if a string "s" is an integer string otherwise false
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @example
+ * KJUR.lang.String.isInteger("12345") &rarr; true
+ * KJUR.lang.String.isInteger("123ab") &rarr; false
+ */
+KJUR.lang.String.isInteger = function(s) {
+    if (s.match(/^[0-9]+$/)) {
+	return true;
+    } else if (s.match(/^-[0-9]+$/)) {
+	return true;
+    } else {
+	return false;
+    }
+};
+
+/**
+ * check whether a string is an hexadecimal string or not<br/>
+ * @name isHex
+ * @memberOf KJUR.lang.String
+ * @function
+ * @static
+ * @param {String} s input string
+ * @return {Boolean} true if a string "s" is an hexadecimal string otherwise false
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @example
+ * KJUR.lang.String.isHex("1234") &rarr; true
+ * KJUR.lang.String.isHex("12ab") &rarr; true
+ * KJUR.lang.String.isHex("12AB") &rarr; true
+ * KJUR.lang.String.isHex("12ZY") &rarr; false
+ * KJUR.lang.String.isHex("121") &rarr; false -- odd length
+ */
+KJUR.lang.String.isHex = function(s) {
+    if (s.length % 2 == 0 &&
+	(s.match(/^[0-9a-f]+$/) || s.match(/^[0-9A-F]+$/))) {
+	return true;
+    } else {
+	return false;
+    }
+};
+
+/**
+ * check whether a string is a base64 encoded string or not<br/>
+ * Input string can conclude new lines or space characters.
+ * @name isBase64
+ * @memberOf KJUR.lang.String
+ * @function
+ * @static
+ * @param {String} s input string
+ * @return {Boolean} true if a string "s" is a base64 encoded string otherwise false
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @example
+ * KJUR.lang.String.isBase64("YWE=") &rarr; true
+ * KJUR.lang.String.isBase64("YW_=") &rarr; false
+ * KJUR.lang.String.isBase64("YWE") &rarr; false -- length shall be multiples of 4
+ */
+KJUR.lang.String.isBase64 = function(s) {
+    s = s.replace(/\s+/g, "");
+    if (s.match(/^[0-9A-Za-z+\/]+={0,3}$/) && s.length % 4 == 0) {
+	return true;
+    } else {
+	return false;
+    }
+};
+
+/**
+ * check whether a string is a base64url encoded string or not<br/>
+ * Input string can conclude new lines or space characters.
+ * @name isBase64URL
+ * @memberOf KJUR.lang.String
+ * @function
+ * @static
+ * @param {String} s input string
+ * @return {Boolean} true if a string "s" is a base64url encoded string otherwise false
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @example
+ * KJUR.lang.String.isBase64URL("YWE") &rarr; true
+ * KJUR.lang.String.isBase64URL("YW-") &rarr; true
+ * KJUR.lang.String.isBase64URL("YW+") &rarr; false
+ */
+KJUR.lang.String.isBase64URL = function(s) {
+    if (s.match(/[+/=]/)) return false;
+    s = b64utob64(s);
+    return KJUR.lang.String.isBase64(s);
+};
+
+/**
+ * check whether a string is a string of integer array or not<br/>
+ * Input string can conclude new lines or space characters.
+ * @name isIntegerArray
+ * @memberOf KJUR.lang.String
+ * @function
+ * @static
+ * @param {String} s input string
+ * @return {Boolean} true if a string "s" is a string of integer array otherwise false
+ * @since base64x 1.1.7 jsrsasign 5.0.13
+ * @example
+ * KJUR.lang.String.isIntegerArray("[1,2,3]") &rarr; true
+ * KJUR.lang.String.isIntegerArray("  [1, 2, 3  ] ") &rarr; true
+ * KJUR.lang.String.isIntegerArray("[a,2]") &rarr; false
+ */
+KJUR.lang.String.isIntegerArray = function(s) {
+    s = s.replace(/\s+/g, "");
+    if (s.match(/^\[[0-9,]+\]$/)) {
+	return true;
+    } else {
+	return false;
+    }
+};
+
 // ==== others ================================
 
 /**
+ * canonicalize hexadecimal string of positive integer<br/>
+ * @name hextoposhex
+ * @function
+ * @param {String} s hexadecimal string 
+ * @return {String} canonicalized hexadecimal string of positive integer
+ * @since base64x 1.1.10 jsrsasign 7.1.4
+ * @description
+ * This method canonicalize a hexadecimal string of positive integer
+ * for two's complement representation.
+ * Canonicalized hexadecimal string of positive integer will be:
+ * <ul>
+ * <li>Its length is always even.</li>
+ * <li>If odd length it will be padded with leading zero.<li>
+ * <li>If it is even length and its first character is "8" or greater,
+ * it will be padded with "00" to make it positive integer.</li>
+ * </ul>
+ * @example
+ * hextoposhex("abcd") &rarr; "00abcd"
+ * hextoposhex("1234") &rarr; "1234"
+ * hextoposhex("12345") &rarr; "012345"
+ */
+function hextoposhex(s) {
+    if (s.length % 2 == 1) return "0" + s;
+    if (s.substr(0, 1) > "7") return "00" + s;
+    return s;
+}
+
+/**
  * convert string of integer array to hexadecimal string.<br/>
+ * @name intarystrtohex
+ * @function
  * @param {String} s string of integer array
  * @return {String} hexadecimal string
  * @since base64x 1.1.6 jsrsasign 5.0.2
@@ -5305,7 +6116,7 @@ function newline_toDos(s) {
  * 
  * @example
  * intarystrtohex(" [123, 34, 101, 34, 58] ")
- * -> 7b2265223a (i.e. `{"e":` as string)
+ * &rarr; 7b2265223a (i.e. '{"e":' as string)
  */
 function intarystrtohex(s) {
   s = s.replace(/^\s*\[\s*/, '');
@@ -5326,6 +6137,8 @@ function intarystrtohex(s) {
 
 /**
  * find index of string where two string differs
+ * @name strdiffidx
+ * @function
  * @param {String} s1 string to compare
  * @param {String} s2 string to compare
  * @return {Number} string index of where character differs. Return -1 if same.
@@ -5346,15 +6159,17 @@ var strdiffidx = function(s1, s2) {
     return -1; // same
 };
 
-/*! crypto-1.1.8.js (c) 2013-2016 Kenji Urushima | kjur.github.com/jsrsasign/license
+
+
+/* crypto-1.2.1.js (c) 2013-2017 Kenji Urushima | kjur.github.io/jsrsasign/license
  */
 /*
  * crypto.js - Cryptographic Algorithm Provider class
  *
- * Copyright (c) 2013-2016 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2013-2017 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
- * http://kjur.github.com/jsrsasign/license
+ * https://kjur.github.io/jsrsasign/license
  *
  * The above copyright and license notice shall be 
  * included in all copies or substantial portions of the Software.
@@ -5364,9 +6179,9 @@ var strdiffidx = function(s1, s2) {
  * @fileOverview
  * @name crypto-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version 1.1.8 (2016-Feb-28)
+ * @version 1.2.1 (2017-Sep-15)
  * @since jsrsasign 2.2
- * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
+ * @license <a href="https://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
 
 /** 
@@ -5382,6 +6197,7 @@ if (typeof KJUR == "undefined" || !KJUR) KJUR = {};
  * <ul>
  * <li>{@link KJUR.crypto.MessageDigest} - Java JCE(cryptograhic extension) style MessageDigest class</li>
  * <li>{@link KJUR.crypto.Signature} - Java JCE(cryptograhic extension) style Signature class</li>
+ * <li>{@link KJUR.crypto.Cipher} - class for encrypting and decrypting data</li>
  * <li>{@link KJUR.crypto.Util} - cryptographic utility functions and properties</li>
  * </ul>
  * NOTE: Please ignore method summary and document of this namespace. This caused by a bug of jsdoc2.
@@ -5597,47 +6413,174 @@ KJUR.crypto.Util = new function() {
         return md.digestHex(s);
     };
 
-    /**
-     * get hexadecimal MD5 hash of string
-     * @name md5
-     * @memberOf KJUR.crypto.Util
-     * @function
-     * @param {String} s input string to be hashed
-     * @return {String} hexadecimal string of hash value
-     * @since 1.0.3
-     */
-    this.md5 = function(s) {
-        var md = new KJUR.crypto.MessageDigest({'alg':'md5', 'prov':'cryptojs'});
-        return md.digestString(s);
-    };
-
-    /**
-     * get hexadecimal RIPEMD160 hash of string
-     * @name ripemd160
-     * @memberOf KJUR.crypto.Util
-     * @function
-     * @param {String} s input string to be hashed
-     * @return {String} hexadecimal string of hash value
-     * @since 1.0.3
-     */
-    this.ripemd160 = function(s) {
-        var md = new KJUR.crypto.MessageDigest({'alg':'ripemd160', 'prov':'cryptojs'});
-        return md.digestString(s);
-    };
-
-    /*
-     * @since 1.1.2
-     */
-    this.getCryptoJSMDByName = function(s) {
-	
-    };
 };
 
 /**
- * MessageDigest class which is very similar to java.security.MessageDigest class
+ * get hexadecimal MD5 hash of string
+ * @name md5
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {String} s input string to be hashed
+ * @return {String} hexadecimal string of hash value
+ * @since 1.0.3
+ * @example
+ * Util.md5('aaa') &rarr; 47bce5c74f589f4867dbd57e9ca9f808
+ */
+KJUR.crypto.Util.md5 = function(s) {
+    var md = new KJUR.crypto.MessageDigest({'alg':'md5', 'prov':'cryptojs'});
+    return md.digestString(s);
+};
+
+/**
+ * get hexadecimal RIPEMD160 hash of string
+ * @name ripemd160
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {String} s input string to be hashed
+ * @return {String} hexadecimal string of hash value
+ * @since 1.0.3
+ * @example
+ * KJUR.crypto.Util.ripemd160("aaa") &rarr; 08889bd7b151aa174c21f33f59147fa65381edea
+ */
+KJUR.crypto.Util.ripemd160 = function(s) {
+    var md = new KJUR.crypto.MessageDigest({'alg':'ripemd160', 'prov':'cryptojs'});
+    return md.digestString(s);
+};
+
+// @since jsrsasign 7.0.0 crypto 1.1.11
+KJUR.crypto.Util.SECURERANDOMGEN = new SecureRandom();
+
+/**
+ * get hexadecimal string of random value from with specified byte length<br/>
+ * @name getRandomHexOfNbytes
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {Integer} n length of bytes of random
+ * @return {String} hexadecimal string of random
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @example
+ * KJUR.crypto.Util.getRandomHexOfNbytes(3) &rarr; "6314af", "000000" or "001fb4"
+ * KJUR.crypto.Util.getRandomHexOfNbytes(128) &rarr; "8fbc..." in 1024bits 
+ */
+KJUR.crypto.Util.getRandomHexOfNbytes = function(n) {
+    var ba = new Array(n);
+    KJUR.crypto.Util.SECURERANDOMGEN.nextBytes(ba);
+    return BAtohex(ba);
+};
+
+/**
+ * get BigInteger object of random value from with specified byte length<br/>
+ * @name getRandomBigIntegerOfNbytes
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {Integer} n length of bytes of random
+ * @return {BigInteger} BigInteger object of specified random value
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @example
+ * KJUR.crypto.Util.getRandomBigIntegerOfNbytes(3) &rarr; 6314af of BigInteger
+ * KJUR.crypto.Util.getRandomBigIntegerOfNbytes(128) &rarr; 8fbc... of BigInteger
+ */
+KJUR.crypto.Util.getRandomBigIntegerOfNbytes = function(n) {
+    return new BigInteger(KJUR.crypto.Util.getRandomHexOfNbytes(n), 16);
+};
+
+/**
+ * get hexadecimal string of random value from with specified bit length<br/>
+ * @name getRandomHexOfNbits
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {Integer} n length of bits of random
+ * @return {String} hexadecimal string of random
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @example
+ * KJUR.crypto.Util.getRandomHexOfNbits(24) &rarr; "6314af", "000000" or "001fb4"
+ * KJUR.crypto.Util.getRandomHexOfNbits(1024) &rarr; "8fbc..." in 1024bits 
+ */
+KJUR.crypto.Util.getRandomHexOfNbits = function(n) {
+    var n_remainder = n % 8;
+    var n_quotient = (n - n_remainder) / 8;
+    var ba = new Array(n_quotient + 1);
+    KJUR.crypto.Util.SECURERANDOMGEN.nextBytes(ba);
+    ba[0] = (((255 << n_remainder) & 255) ^ 255) & ba[0];
+    return BAtohex(ba);
+};
+
+/**
+ * get BigInteger object of random value from with specified bit length<br/>
+ * @name getRandomBigIntegerOfNbits
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {Integer} n length of bits of random
+ * @return {BigInteger} BigInteger object of specified random value
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @example
+ * KJUR.crypto.Util.getRandomBigIntegerOfNbits(24) &rarr; 6314af of BigInteger
+ * KJUR.crypto.Util.getRandomBigIntegerOfNbits(1024) &rarr; 8fbc... of BigInteger
+ */
+KJUR.crypto.Util.getRandomBigIntegerOfNbits = function(n) {
+    return new BigInteger(KJUR.crypto.Util.getRandomHexOfNbits(n), 16);
+};
+
+/**
+ * get BigInteger object of random value from zero to max value<br/>
+ * @name getRandomBigIntegerZeroToMax
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {BigInteger} biMax max value of BigInteger object for random value
+ * @return {BigInteger} BigInteger object of specified random value
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @description
+ * This static method generates a BigInteger object with random value
+ * greater than or equal to zero and smaller than or equal to biMax
+ * (i.e. 0 &le; result &le; biMax).
+ * @example
+ * biMax = new BigInteger("3fa411...", 16);
+ * KJUR.crypto.Util.getRandomBigIntegerZeroToMax(biMax) &rarr; 8fbc... of BigInteger
+ */
+KJUR.crypto.Util.getRandomBigIntegerZeroToMax = function(biMax) {
+    var bitLenMax = biMax.bitLength();
+    while (1) {
+	var biRand = KJUR.crypto.Util.getRandomBigIntegerOfNbits(bitLenMax);
+	if (biMax.compareTo(biRand) != -1) return biRand;
+    }
+};
+
+/**
+ * get BigInteger object of random value from min value to max value<br/>
+ * @name getRandomBigIntegerMinToMax
+ * @memberOf KJUR.crypto.Util
+ * @function
+ * @param {BigInteger} biMin min value of BigInteger object for random value
+ * @param {BigInteger} biMax max value of BigInteger object for random value
+ * @return {BigInteger} BigInteger object of specified random value
+ * @since jsrsasign 7.0.0 crypto 1.1.11
+ * @description
+ * This static method generates a BigInteger object with random value
+ * greater than or equal to biMin and smaller than or equal to biMax
+ * (i.e. biMin &le; result &le; biMax).
+ * @example
+ * biMin = new BigInteger("2fa411...", 16);
+ * biMax = new BigInteger("3fa411...", 16);
+ * KJUR.crypto.Util.getRandomBigIntegerMinToMax(biMin, biMax) &rarr; 32f1... of BigInteger
+ */
+KJUR.crypto.Util.getRandomBigIntegerMinToMax = function(biMin, biMax) {
+    var flagCompare = biMin.compareTo(biMax);
+    if (flagCompare == 1) throw "biMin is greater than biMax";
+    if (flagCompare == 0) return biMin;
+
+    var biDiff = biMax.subtract(biMin);
+    var biRand = KJUR.crypto.Util.getRandomBigIntegerZeroToMax(biDiff);
+    return biRand.add(biMin);
+};
+
+// === Mac ===============================================================
+
+/**
+ * MessageDigest class which is very similar to java.security.MessageDigest class<br/>
  * @name KJUR.crypto.MessageDigest
  * @class MessageDigest class which is very similar to java.security.MessageDigest class
  * @param {Array} params parameters for constructor
+ * @property {Array} HASHLENGTH static Array of resulted byte length of hash (ex. HASHLENGTH["sha1"] == 20)
  * @description
  * <br/>
  * Currently this supports following algorithm and providers combination:
@@ -5661,6 +6604,10 @@ KJUR.crypto.Util = new function() {
  * var md = new KJUR.crypto.MessageDigest({alg: "sha256", prov: "sjcl"}); // sjcl supports sha256 only
  * md.updateString('aaa')
  * var mdHex = md.digest()
+ *
+ * // HASHLENGTH property
+ * KJUR.crypto.MessageDigest.HASHLENGTH['sha1'] &rarr 20
+ * KJUR.crypto.MessageDigest.HASHLENGTH['sha512'] &rarr 64
  */
 KJUR.crypto.MessageDigest = function(params) {
     var md = null;
@@ -5668,21 +6615,38 @@ KJUR.crypto.MessageDigest = function(params) {
     var provName = null;
 
     /**
-     * set hash algorithm and provider
+     * set hash algorithm and provider<br/>
      * @name setAlgAndProvider
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @param {String} alg hash algorithm name
      * @param {String} prov provider name
      * @description
+     * This methods set an algorithm and a cryptographic provider.<br/>
+     * Here is acceptable algorithm names ignoring cases and hyphens:
+     * <ul>
+     * <li>MD5</li>
+     * <li>SHA1</li>
+     * <li>SHA224</li>
+     * <li>SHA256</li>
+     * <li>SHA384</li>
+     * <li>SHA512</li>
+     * <li>RIPEMD160</li>
+     * </ul>
+     * NOTE: Since jsrsasign 6.2.0 crypto 1.1.10, this method ignores
+     * upper or lower cases. Also any hyphens (i.e. "-") will be ignored
+     * so that "SHA1" or "SHA-1" will be acceptable.
      * @example
      * // for SHA1
      * md.setAlgAndProvider('sha1', 'cryptojs');
+     * md.setAlgAndProvider('SHA1');
      * // for RIPEMD160
      * md.setAlgAndProvider('ripemd160', 'cryptojs');
      */
     this.setAlgAndProvider = function(alg, prov) {
-	if (alg != null && prov === undefined) prov = KJUR.crypto.Util.DEFAULTPROVIDER[alg];
+	alg = KJUR.crypto.MessageDigest.getCanonicalAlgName(alg);
+
+	if (alg !== null && prov === undefined) prov = KJUR.crypto.Util.DEFAULTPROVIDER[alg];
 
 	// for cryptojs
 	if (':md5:sha1:sha224:sha256:sha384:sha512:ripemd160:'.indexOf(alg) != -1 &&
@@ -5744,7 +6708,7 @@ KJUR.crypto.MessageDigest = function(params) {
     /**
      * update digest by specified string
      * @name updateString
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @param {String} str string to update
      * @description
@@ -5758,7 +6722,7 @@ KJUR.crypto.MessageDigest = function(params) {
     /**
      * update digest by specified hexadecimal string
      * @name updateHex
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @param {String} hex hexadecimal string to update
      * @description
@@ -5772,7 +6736,7 @@ KJUR.crypto.MessageDigest = function(params) {
     /**
      * completes hash calculation and returns hash result
      * @name digest
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @description
      * @example
@@ -5785,7 +6749,7 @@ KJUR.crypto.MessageDigest = function(params) {
     /**
      * performs final update on the digest using string, then completes the digest computation
      * @name digestString
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @param {String} str string to final update
      * @description
@@ -5799,7 +6763,7 @@ KJUR.crypto.MessageDigest = function(params) {
     /**
      * performs final update on the digest using hexadecimal string, then completes the digest computation
      * @name digestHex
-     * @memberOf KJUR.crypto.MessageDigest
+     * @memberOf KJUR.crypto.MessageDigest#
      * @function
      * @param {String} hex hexadecimal string to final update
      * @description
@@ -5819,6 +6783,65 @@ KJUR.crypto.MessageDigest = function(params) {
 	}
     }
 };
+
+/**
+ * get canonical hash algorithm name<br/>
+ * @name getCanonicalAlgName
+ * @memberOf KJUR.crypto.MessageDigest
+ * @function
+ * @param {String} alg hash algorithm name (ex. MD5, SHA-1, SHA1, SHA512 et.al.)
+ * @return {String} canonical hash algorithm name
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * This static method normalizes from any hash algorithm name such as
+ * "SHA-1", "SHA1", "MD5", "sha512" to lower case name without hyphens
+ * such as "sha1".
+ * @example
+ * KJUR.crypto.MessageDigest.getCanonicalAlgName("SHA-1") &rarr "sha1"
+ * KJUR.crypto.MessageDigest.getCanonicalAlgName("MD5")   &rarr "md5"
+ */
+KJUR.crypto.MessageDigest.getCanonicalAlgName = function(alg) {
+    if (typeof alg === "string") {
+	alg = alg.toLowerCase();
+	alg = alg.replace(/-/, '');
+    }
+    return alg;
+};
+
+/**
+ * get resulted hash byte length for specified algorithm name<br/>
+ * @name getHashLength
+ * @memberOf KJUR.crypto.MessageDigest
+ * @function
+ * @param {String} alg non-canonicalized hash algorithm name (ex. MD5, SHA-1, SHA1, SHA512 et.al.)
+ * @return {Integer} resulted hash byte length
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * This static method returns resulted byte length for specified algorithm name such as "SHA-1".
+ * @example
+ * KJUR.crypto.MessageDigest.getHashLength("SHA-1") &rarr 20
+ * KJUR.crypto.MessageDigest.getHashLength("sha1") &rarr 20
+ */
+KJUR.crypto.MessageDigest.getHashLength = function(alg) {
+    var MD = KJUR.crypto.MessageDigest
+    var alg2 = MD.getCanonicalAlgName(alg);
+    if (MD.HASHLENGTH[alg2] === undefined)
+	throw "not supported algorithm: " + alg;
+    return MD.HASHLENGTH[alg2];
+};
+
+// described in KJUR.crypto.MessageDigest class (since jsrsasign 6.2.0 crypto 1.1.10)
+KJUR.crypto.MessageDigest.HASHLENGTH = {
+    'md5':		16,
+    'sha1':		20,
+    'sha224':		28,
+    'sha256':		32,
+    'sha384':		48,
+    'sha512':		64,
+    'ripemd160':	20
+};
+
+// === Mac ===============================================================
 
 /**
  * Mac(Message Authentication Code) class which is very similar to java.security.Mac class 
@@ -5848,7 +6871,7 @@ KJUR.crypto.MessageDigest = function(params) {
  * @example
  * var mac = new KJUR.crypto.Mac({alg: "HmacSHA1", "pass": "pass"});
  * mac.updateString('aaa')
- * var macHex = md.doFinal()
+ * var macHex = mac.doFinal()
  *
  * // other password representation 
  * var mac = new KJUR.crypto.Mac({alg: "HmacSHA256", "pass": {"hex":  "6161"}});
@@ -5913,12 +6936,12 @@ KJUR.crypto.Mac = function(params) {
     /**
      * update digest by specified string
      * @name updateString
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @param {String} str string to update
      * @description
      * @example
-     * md.updateString('New York');
+     * mac.updateString('New York');
      */
     this.updateString = function(str) {
 	throw "updateString(str) not supported for this alg/prov: " + this.algProv;
@@ -5927,12 +6950,12 @@ KJUR.crypto.Mac = function(params) {
     /**
      * update digest by specified hexadecimal string
      * @name updateHex
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @param {String} hex hexadecimal string to update
      * @description
      * @example
-     * md.updateHex('0afe36');
+     * mac.updateHex('0afe36');
      */
     this.updateHex = function(hex) {
 	throw "updateHex(hex) not supported for this alg/prov: " + this.algProv;
@@ -5941,11 +6964,11 @@ KJUR.crypto.Mac = function(params) {
     /**
      * completes hash calculation and returns hash result
      * @name doFinal
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @description
      * @example
-     * md.digest()
+     * mac.digest()
      */
     this.doFinal = function() {
 	throw "digest() not supported for this alg/prov: " + this.algProv;
@@ -5954,12 +6977,12 @@ KJUR.crypto.Mac = function(params) {
     /**
      * performs final update on the digest using string, then completes the digest computation
      * @name doFinalString
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @param {String} str string to final update
      * @description
      * @example
-     * md.digestString('aaa')
+     * mac.digestString('aaa')
      */
     this.doFinalString = function(str) {
 	throw "digestString(str) not supported for this alg/prov: " + this.algProv;
@@ -5969,12 +6992,12 @@ KJUR.crypto.Mac = function(params) {
      * performs final update on the digest using hexadecimal string, 
      * then completes the digest computation
      * @name doFinalHex
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @param {String} hex hexadecimal string to final update
      * @description
      * @example
-     * md.digestHex('0f2abd')
+     * mac.digestHex('0f2abd')
      */
     this.doFinalHex = function(hex) {
 	throw "digestHex(hex) not supported for this alg/prov: " + this.algProv;
@@ -5983,7 +7006,7 @@ KJUR.crypto.Mac = function(params) {
     /**
      * set password for Mac
      * @name setPassword
-     * @memberOf KJUR.crypto.Mac
+     * @memberOf KJUR.crypto.Mac#
      * @function
      * @param {Object} pass password for Mac
      * @since crypto 1.1.7 jsrsasign 4.9.0
@@ -6071,6 +7094,7 @@ KJUR.crypto.Mac = function(params) {
     }
 };
 
+// ====== Signature class =========================================================
 /**
  * Signature class which is very similar to java.security.Signature class
  * @name KJUR.crypto.Signature
@@ -6166,9 +7190,10 @@ KJUR.crypto.Signature = function(params) {
     var hSign = null;
 
     this._setAlgNames = function() {
-	if (this.algName.match(/^(.+)with(.+)$/)) {
-	    this.mdAlgName = RegExp.$1.toLowerCase();
-	    this.pubkeyAlgName = RegExp.$2.toLowerCase();
+    var matchResult = this.algName.match(/^(.+)with(.+)$/);
+	if (matchResult) {
+	    this.mdAlgName = matchResult[1].toLowerCase();
+	    this.pubkeyAlgName = matchResult[2].toLowerCase();
 	}
     };
 
@@ -6184,7 +7209,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * set signature algorithm and provider
      * @name setAlgAndProvider
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} alg signature algorithm name
      * @param {String} prov provider name
@@ -6202,9 +7227,9 @@ KJUR.crypto.Signature = function(params) {
 		this.md = new KJUR.crypto.MessageDigest({'alg':this.mdAlgName});
 	    } catch (ex) {
 		throw "setAlgAndProvider hash alg set fail alg=" +
-                      this.mdAlgName + "/" + ex;
+                    this.mdAlgName + "/" + ex;
 	    }
-
+	    
 	    this.init = function(keyparam, pass) {
 		var keyObj = null;
 		try {
@@ -6228,37 +7253,6 @@ KJUR.crypto.Signature = function(params) {
 		}
 	    };
 
-	    this.initSign = function(params) {
-		if (typeof params['ecprvhex'] == 'string' &&
-                    typeof params['eccurvename'] == 'string') {
-		    this.ecprvhex = params['ecprvhex'];
-		    this.eccurvename = params['eccurvename'];
-		} else {
-		    this.prvKey = params;
-		}
-		this.state = "SIGN";
-	    };
-
-	    this.initVerifyByPublicKey = function(params) {
-		if (typeof params['ecpubhex'] == 'string' &&
-		    typeof params['eccurvename'] == 'string') {
-		    this.ecpubhex = params['ecpubhex'];
-		    this.eccurvename = params['eccurvename'];
-		} else if (params instanceof KJUR.crypto.ECDSA) {
-		    this.pubKey = params;
-		} else if (params instanceof RSAKey) {
-		    this.pubKey = params;
-		}
-		this.state = "VERIFY";
-	    };
-
-	    this.initVerifyByCertificatePEM = function(certPEM) {
-		var x509 = new X509();
-		x509.readCertPEM(certPEM);
-		this.pubKey = x509.subjectPublicKeyRSA;
-		this.state = "VERIFY";
-	    };
-
 	    this.updateString = function(str) {
 		this.md.updateString(str);
 	    };
@@ -6274,12 +7268,12 @@ KJUR.crypto.Signature = function(params) {
 		    var ec = new KJUR.crypto.ECDSA({'curve': this.eccurvename});
 		    this.hSign = ec.signHex(this.sHashHex, this.ecprvhex);
 		} else if (this.prvKey instanceof RSAKey &&
-		           this.pubkeyAlgName == "rsaandmgf1") {
+		           this.pubkeyAlgName === "rsaandmgf1") {
 		    this.hSign = this.prvKey.signWithMessageHashPSS(this.sHashHex,
 								    this.mdAlgName,
 								    this.pssSaltLen);
 		} else if (this.prvKey instanceof RSAKey &&
-			   this.pubkeyAlgName == "rsa") {
+			   this.pubkeyAlgName === "rsa") {
 		    this.hSign = this.prvKey.signWithMessageHash(this.sHashHex,
 								 this.mdAlgName);
 		} else if (this.prvKey instanceof KJUR.crypto.ECDSA) {
@@ -6287,7 +7281,7 @@ KJUR.crypto.Signature = function(params) {
 		} else if (this.prvKey instanceof KJUR.crypto.DSA) {
 		    this.hSign = this.prvKey.signWithMessageHash(this.sHashHex);
 		} else {
-		    throw "Signature: unsupported public key alg: " + this.pubkeyAlgName;
+		    throw "Signature: unsupported private key alg: " + this.pubkeyAlgName;
 		}
 		return this.hSign;
 	    };
@@ -6306,16 +7300,18 @@ KJUR.crypto.Signature = function(params) {
 		    var ec = new KJUR.crypto.ECDSA({curve: this.eccurvename});
 		    return ec.verifyHex(this.sHashHex, hSigVal, this.ecpubhex);
 		} else if (this.pubKey instanceof RSAKey &&
-			   this.pubkeyAlgName == "rsaandmgf1") {
+			   this.pubkeyAlgName === "rsaandmgf1") {
 		    return this.pubKey.verifyWithMessageHashPSS(this.sHashHex, hSigVal, 
 								this.mdAlgName,
 								this.pssSaltLen);
 		} else if (this.pubKey instanceof RSAKey &&
-			   this.pubkeyAlgName == "rsa") {
+			   this.pubkeyAlgName === "rsa") {
 		    return this.pubKey.verifyWithMessageHash(this.sHashHex, hSigVal);
-		} else if (this.pubKey instanceof KJUR.crypto.ECDSA) {
+		} else if (KJUR.crypto.ECDSA !== undefined &&
+			   this.pubKey instanceof KJUR.crypto.ECDSA) {
 		    return this.pubKey.verifyWithMessageHash(this.sHashHex, hSigVal);
-		} else if (this.pubKey instanceof KJUR.crypto.DSA) {
+		} else if (KJUR.crypto.DSA !== undefined &&
+			   this.pubKey instanceof KJUR.crypto.DSA) {
 		    return this.pubKey.verifyWithMessageHash(this.sHashHex, hSigVal);
 		} else {
 		    throw "Signature: unsupported public key alg: " + this.pubkeyAlgName;
@@ -6327,7 +7323,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * Initialize this object for signing or verifying depends on key
      * @name init
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {Object} key specifying public or private key as plain/encrypted PKCS#5/8 PEM file, certificate PEM or {@link RSAKey}, {@link KJUR.crypto.DSA} or {@link KJUR.crypto.ECDSA} object
      * @param {String} pass (OPTION) passcode for encrypted private key
@@ -6365,73 +7361,9 @@ KJUR.crypto.Signature = function(params) {
     };
 
     /**
-     * Initialize this object for verifying with a public key
-     * @name initVerifyByPublicKey
-     * @memberOf KJUR.crypto.Signature
-     * @function
-     * @param {Object} param RSAKey object of public key or associative array for ECDSA
-     * @since 1.0.2
-     * @deprecated from crypto 1.1.5. please use init() method instead.
-     * @description
-     * Public key information will be provided as 'param' parameter and the value will be
-     * following:
-     * <ul>
-     * <li>{@link RSAKey} object for RSA verification</li>
-     * <li>associative array for ECDSA verification
-     *     (ex. <code>{'ecpubhex': '041f..', 'eccurvename': 'secp256r1'}</code>)
-     * </li>
-     * </ul>
-     * @example
-     * sig.initVerifyByPublicKey(rsaPrvKey)
-     */
-    this.initVerifyByPublicKey = function(rsaPubKey) {
-	throw "initVerifyByPublicKey(rsaPubKeyy) not supported for this alg:prov=" +
-	      this.algProvName;
-    };
-
-    /**
-     * Initialize this object for verifying with a certficate
-     * @name initVerifyByCertificatePEM
-     * @memberOf KJUR.crypto.Signature
-     * @function
-     * @param {String} certPEM PEM formatted string of certificate
-     * @since 1.0.2
-     * @deprecated from crypto 1.1.5. please use init() method instead.
-     * @description
-     * @example
-     * sig.initVerifyByCertificatePEM(certPEM)
-     */
-    this.initVerifyByCertificatePEM = function(certPEM) {
-	throw "initVerifyByCertificatePEM(certPEM) not supported for this alg:prov=" +
-	    this.algProvName;
-    };
-
-    /**
-     * Initialize this object for signing
-     * @name initSign
-     * @memberOf KJUR.crypto.Signature
-     * @function
-     * @param {Object} param RSAKey object of public key or associative array for ECDSA
-     * @deprecated from crypto 1.1.5. please use init() method instead.
-     * @description
-     * Private key information will be provided as 'param' parameter and the value will be
-     * following:
-     * <ul>
-     * <li>{@link RSAKey} object for RSA signing</li>
-     * <li>associative array for ECDSA signing
-     *     (ex. <code>{'ecprvhex': '1d3f..', 'eccurvename': 'secp256r1'}</code>)</li>
-     * </ul>
-     * @example
-     * sig.initSign(prvKey)
-     */
-    this.initSign = function(prvKey) {
-	throw "initSign(prvKey) not supported for this alg:prov=" + this.algProvName;
-    };
-
-    /**
      * Updates the data to be signed or verified by a string
      * @name updateString
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} str string to use for the update
      * @description
@@ -6445,7 +7377,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * Updates the data to be signed or verified by a hexadecimal string
      * @name updateHex
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} hex hexadecimal string to use for the update
      * @description
@@ -6459,7 +7391,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * Returns the signature bytes of all data updates as a hexadecimal string
      * @name sign
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @return the signature bytes as a hexadecimal string
      * @description
@@ -6473,7 +7405,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * performs final update on the sign using string, then returns the signature bytes of all data updates as a hexadecimal string
      * @name signString
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} str string to final update
      * @return the signature bytes of a hexadecimal string
@@ -6488,7 +7420,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * performs final update on the sign using hexadecimal string, then returns the signature bytes of all data updates as a hexadecimal string
      * @name signHex
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} hex hexadecimal string to final update
      * @return the signature bytes of a hexadecimal string
@@ -6503,7 +7435,7 @@ KJUR.crypto.Signature = function(params) {
     /**
      * verifies the passed-in signature.
      * @name verify
-     * @memberOf KJUR.crypto.Signature
+     * @memberOf KJUR.crypto.Signature#
      * @function
      * @param {String} str string to final update
      * @return {Boolean} true if the signature was verified, otherwise false
@@ -6518,12 +7450,12 @@ KJUR.crypto.Signature = function(params) {
     this.initParams = params;
 
     if (params !== undefined) {
-	if (params['alg'] !== undefined) {
-	    this.algName = params['alg'];
-	    if (params['prov'] === undefined) {
+	if (params.alg !== undefined) {
+	    this.algName = params.alg;
+	    if (params.prov === undefined) {
 		this.provName = KJUR.crypto.Util.DEFAULTPROVIDER[this.algName];
 	    } else {
-		this.provName = params['prov'];
+		this.provName = params.prov;
 	    }
 	    this.algProvName = this.algName + ":" + this.provName;
 	    this.setAlgAndProvider(this.algName, this.provName);
@@ -6532,14 +7464,13 @@ KJUR.crypto.Signature = function(params) {
 
 	if (params['psssaltlen'] !== undefined) this.pssSaltLen = params['psssaltlen'];
 
-	if (params['prvkeypem'] !== undefined) {
-	    if (params['prvkeypas'] !== undefined) {
+	if (params.prvkeypem !== undefined) {
+	    if (params.prvkeypas !== undefined) {
 		throw "both prvkeypem and prvkeypas parameters not supported";
 	    } else {
 		try {
-		    var prvKey = new RSAKey();
-		    prvKey.readPrivateKeyFromPEMString(params['prvkeypem']);
-		    this.initSign(prvKey);
+		    var prvKey = KEYUTIL.getKey(params.prvkeypem);
+		    this.init(prvKey);
 		} catch (ex) {
 		    throw "fatal error to load pem private key: " + ex;
 		}
@@ -6547,6 +7478,129 @@ KJUR.crypto.Signature = function(params) {
 	}
     }
 };
+
+// ====== Cipher class ============================================================
+/**
+ * Cipher class to encrypt and decrypt data<br/>
+ * @name KJUR.crypto.Cipher
+ * @class Cipher class to encrypt and decrypt data<br/>
+ * @param {Array} params parameters for constructor
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * Here is supported canonicalized cipher algorithm names and its standard names:
+ * <ul>
+ * <li>RSA - RSA/ECB/PKCS1Padding (default for RSAKey)</li>
+ * <li>RSAOAEP - RSA/ECB/OAEPWithSHA-1AndMGF1Padding</li>
+ * <li>RSAOAEP224 - RSA/ECB/OAEPWithSHA-224AndMGF1Padding(*)</li>
+ * <li>RSAOAEP256 - RSA/ECB/OAEPWithSHA-256AndMGF1Padding</li>
+ * <li>RSAOAEP384 - RSA/ECB/OAEPWithSHA-384AndMGF1Padding(*)</li>
+ * <li>RSAOAEP512 - RSA/ECB/OAEPWithSHA-512AndMGF1Padding(*)</li>
+ * </ul>
+ * NOTE: (*) is not supported in Java JCE.<br/>
+ * Currently this class supports only RSA encryption and decryption. 
+ * However it is planning to implement also symmetric ciphers near in the future.
+ * @example
+ */
+KJUR.crypto.Cipher = function(params) {
+};
+
+/**
+ * encrypt raw string by specified key and algorithm<br/>
+ * @name encrypt
+ * @memberOf KJUR.crypto.Cipher
+ * @function
+ * @param {String} s input string to encrypt
+ * @param {Object} keyObj RSAKey object or hexadecimal string of symmetric cipher key
+ * @param {String} algName short/long algorithm name for encryption/decryption 
+ * @return {String} hexadecimal encrypted string
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * This static method encrypts raw string with specified key and algorithm.
+ * @example 
+ * KJUR.crypto.Cipher.encrypt("aaa", pubRSAKeyObj) &rarr; "1abc2d..."
+ * KJUR.crypto.Cipher.encrypt("aaa", pubRSAKeyObj, "RSAOAEP") &rarr; "23ab02..."
+ */
+KJUR.crypto.Cipher.encrypt = function(s, keyObj, algName) {
+    if (keyObj instanceof RSAKey && keyObj.isPublic) {
+	var algName2 = KJUR.crypto.Cipher.getAlgByKeyAndName(keyObj, algName);
+	if (algName2 === "RSA") return keyObj.encrypt(s);
+	if (algName2 === "RSAOAEP") return keyObj.encryptOAEP(s, "sha1");
+
+	var a = algName2.match(/^RSAOAEP(\d+)$/);
+	if (a !== null) return keyObj.encryptOAEP(s, "sha" + a[1]);
+
+	throw "Cipher.encrypt: unsupported algorithm for RSAKey: " + algName;
+    } else {
+	throw "Cipher.encrypt: unsupported key or algorithm";
+    }
+};
+
+/**
+ * decrypt encrypted hexadecimal string with specified key and algorithm<br/>
+ * @name decrypt
+ * @memberOf KJUR.crypto.Cipher
+ * @function
+ * @param {String} hex hexadecial string of encrypted message
+ * @param {Object} keyObj RSAKey object or hexadecimal string of symmetric cipher key
+ * @param {String} algName short/long algorithm name for encryption/decryption
+ * @return {String} hexadecimal encrypted string
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * This static method decrypts encrypted hexadecimal string with specified key and algorithm.
+ * @example 
+ * KJUR.crypto.Cipher.decrypt("aaa", prvRSAKeyObj) &rarr; "1abc2d..."
+ * KJUR.crypto.Cipher.decrypt("aaa", prvRSAKeyObj, "RSAOAEP) &rarr; "23ab02..."
+ */
+KJUR.crypto.Cipher.decrypt = function(hex, keyObj, algName) {
+    if (keyObj instanceof RSAKey && keyObj.isPrivate) {
+	var algName2 = KJUR.crypto.Cipher.getAlgByKeyAndName(keyObj, algName);
+	if (algName2 === "RSA") return keyObj.decrypt(hex);
+	if (algName2 === "RSAOAEP") return keyObj.decryptOAEP(hex, "sha1");
+
+	var a = algName2.match(/^RSAOAEP(\d+)$/);
+	if (a !== null) return keyObj.decryptOAEP(hex, "sha" + a[1]);
+
+	throw "Cipher.decrypt: unsupported algorithm for RSAKey: " + algName;
+    } else {
+	throw "Cipher.decrypt: unsupported key or algorithm";
+    }
+};
+
+/**
+ * get canonicalized encrypt/decrypt algorithm name by key and short/long algorithm name<br/>
+ * @name getAlgByKeyAndName
+ * @memberOf KJUR.crypto.Cipher
+ * @function
+ * @param {Object} keyObj RSAKey object or hexadecimal string of symmetric cipher key
+ * @param {String} algName short/long algorithm name for encryption/decryption
+ * @return {String} canonicalized algorithm name for encryption/decryption
+ * @since jsrsasign 6.2.0 crypto 1.1.10
+ * @description
+ * Here is supported canonicalized cipher algorithm names and its standard names:
+ * <ul>
+ * <li>RSA - RSA/ECB/PKCS1Padding (default for RSAKey)</li>
+ * <li>RSAOAEP - RSA/ECB/OAEPWithSHA-1AndMGF1Padding</li>
+ * <li>RSAOAEP224 - RSA/ECB/OAEPWithSHA-224AndMGF1Padding(*)</li>
+ * <li>RSAOAEP256 - RSA/ECB/OAEPWithSHA-256AndMGF1Padding</li>
+ * <li>RSAOAEP384 - RSA/ECB/OAEPWithSHA-384AndMGF1Padding(*)</li>
+ * <li>RSAOAEP512 - RSA/ECB/OAEPWithSHA-512AndMGF1Padding(*)</li>
+ * </ul>
+ * NOTE: (*) is not supported in Java JCE.
+ * @example 
+ * KJUR.crypto.Cipher.getAlgByKeyAndName(objRSAKey) &rarr; "RSA"
+ * KJUR.crypto.Cipher.getAlgByKeyAndName(objRSAKey, "RSAOAEP") &rarr; "RSAOAEP"
+ */
+KJUR.crypto.Cipher.getAlgByKeyAndName = function(keyObj, algName) {
+    if (keyObj instanceof RSAKey) {
+	if (":RSA:RSAOAEP:RSAOAEP224:RSAOAEP256:RSAOAEP384:RSAOAEP512:".indexOf(algName) != -1)
+	    return algName;
+	if (algName === null || algName === undefined) return "RSA";
+	throw "getAlgByKeyAndName: not supported algorithm name for RSAKey: " + algName;
+    }
+    throw "getAlgByKeyAndName: not supported algorithm name: " + algName;
+}
+
+// ====== Other Utility class =====================================================
 
 /**
  * static object for cryptographic function utilities
@@ -6557,8 +7611,6 @@ KJUR.crypto.Signature = function(params) {
  * @since crypto 1.1.3
  * @description
  */
-
-
 KJUR.crypto.OID = new function() {
     this.oidhex2name = {
 	'2a864886f70d010101': 'rsaEncryption',
@@ -6576,17 +7628,15 @@ KJUR.crypto.OID = new function() {
     };
 };
 
-/*! rsasign-1.2.7.js (c) 2012 Kenji Urushima | kjur.github.com/jsrsasign/license
+/* rsasign-1.3.0.js (c) 2010-2017 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * rsa-sign.js - adding signing functions to RSAKey class.
  *
- * version: 1.2.7 (2013 Aug 25)
- *
- * Copyright (c) 2010-2013 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2010-2017 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
- * http://kjur.github.com/jsrsasign/license/
+ * https://kjur.github.io/jsrsasign/license/
  *
  * The above copyright and license notice shall be 
  * included in all copies or substantial portions of the Software.
@@ -6596,8 +7646,8 @@ KJUR.crypto.OID = new function() {
  * @fileOverview
  * @name rsasign-1.2.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version rsasign 1.2.7
- * @license <a href="http://kjur.github.io/jsrsasign/license/">MIT License</a>
+ * @version jsrsasign 8.0.0 rsasign 1.3.0 (2017-Jun-28)
+ * @license <a href="https://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
 
 var _RE_HEXDECONLY = new RegExp("");
@@ -6625,19 +7675,19 @@ function _zeroPaddingOfSignature(hex, bitLength) {
 
 /**
  * sign for a message string with RSA private key.<br/>
- * @name signString
+ * @name sign
  * @memberOf RSAKey
  * @function
  * @param {String} s message string to be signed.
  * @param {String} hashAlg hash algorithm name for signing.<br/>
  * @return returns hexadecimal string of signature value.
  */
-function _rsasign_signString(s, hashAlg) {
+RSAKey.prototype.sign = function(s, hashAlg) {
     var hashFunc = function(s) { return KJUR.crypto.Util.hashString(s, hashAlg); };
     var sHashHex = hashFunc(s);
 
     return this.signWithMessageHash(sHashHex, hashAlg);
-}
+};
 
 /**
  * sign hash value of message to be signed with RSA private key.<br/>
@@ -6649,20 +7699,12 @@ function _rsasign_signString(s, hashAlg) {
  * @return returns hexadecimal string of signature value.
  * @since rsasign 1.2.6
  */
-function _rsasign_signWithMessageHash(sHashHex, hashAlg) {
+RSAKey.prototype.signWithMessageHash = function(sHashHex, hashAlg) {
     var hPM = KJUR.crypto.Util.getPaddedDigestInfoHex(sHashHex, hashAlg, this.n.bitLength());
     var biPaddedMessage = parseBigInt(hPM, 16);
     var biSign = this.doPrivate(biPaddedMessage);
     var hexSign = biSign.toString(16);
     return _zeroPaddingOfSignature(hexSign, this.n.bitLength());
-}
-
-function _rsasign_signStringWithSHA1(s) {
-    return _rsasign_signString.call(this, s, 'sha1');
-}
-
-function _rsasign_signStringWithSHA256(s) {
-    return _rsasign_signString.call(this, s, 'sha256');
 }
 
 // PKCS#1 (PSS) mask generation function
@@ -6683,7 +7725,7 @@ function pss_mgf1_str(seed, len, hash) {
 
 /**
  * sign for a message string with RSA private key by PKCS#1 PSS signing.<br/>
- * @name signStringPSS
+ * @name signPSS
  * @memberOf RSAKey
  * @function
  * @param {String} s message string to be signed.
@@ -6698,13 +7740,13 @@ function pss_mgf1_str(seed, len, hash) {
  *        DEFAULT is -1. (NOTE: OpenSSL's default is -2.)
  * @return returns hexadecimal string of signature value.
  */
-function _rsasign_signStringPSS(s, hashAlg, sLen) {
+RSAKey.prototype.signPSS = function(s, hashAlg, sLen) {
     var hashFunc = function(sHex) { return KJUR.crypto.Util.hashHex(sHex, hashAlg); } 
     var hHash = hashFunc(rstrtohex(s));
 
     if (sLen === undefined) sLen = -1;
     return this.signWithMessageHashPSS(hHash, hashAlg, sLen);
-}
+};
 
 /**
  * sign hash value of message with RSA private key by PKCS#1 PSS signing.<br/>
@@ -6724,7 +7766,7 @@ function _rsasign_signStringPSS(s, hashAlg, sLen) {
  * @return returns hexadecimal string of signature value.
  * @since rsasign 1.2.6
  */
-function _rsasign_signWithMessageHashPSS(hHash, hashAlg, sLen) {
+RSAKey.prototype.signWithMessageHashPSS = function(hHash, hashAlg, sLen) {
     var mHash = hextorstr(hHash);
     var hLen = mHash.length;
     var emBits = this.n.bitLength() - 1;
@@ -6809,28 +7851,9 @@ function _rsasign_getAlgNameAndHashFromHexDisgestInfo(hDigestInfo) {
     return [];
 }
 
-function _rsasign_verifySignatureWithArgs(sMsg, biSig, hN, hE) {
-    var hDigestInfo = _rsasign_getHexDigestInfoFromSig(biSig, hN, hE);
-    var digestInfoAry = _rsasign_getAlgNameAndHashFromHexDisgestInfo(hDigestInfo);
-    if (digestInfoAry.length == 0) return false;
-    var algName = digestInfoAry[0];
-    var diHashValue = digestInfoAry[1];
-    var ff = function(s) { return KJUR.crypto.Util.hashString(s, algName); };
-    var msgHashValue = ff(sMsg);
-    return (diHashValue == msgHashValue);
-}
-
-function _rsasign_verifyHexSignatureForMessage(hSig, sMsg) {
-    var biSig = parseBigInt(hSig, 16);
-    var result = _rsasign_verifySignatureWithArgs(sMsg, biSig,
-						  this.n.toString(16),
-						  this.e.toString(16));
-    return result;
-}
-
 /**
  * verifies a sigature for a message string with RSA public key.<br/>
- * @name verifyString
+ * @name verify
  * @memberOf RSAKey#
  * @function
  * @param {String} sMsg message string to be verified.
@@ -6838,7 +7861,7 @@ function _rsasign_verifyHexSignatureForMessage(hSig, sMsg) {
  *                 non-hexadecimal charactors including new lines will be ignored.
  * @return returns 1 if valid, otherwise 0
  */
-function _rsasign_verifyString(sMsg, hSig) {
+RSAKey.prototype.verify = function(sMsg, hSig) {
     hSig = hSig.replace(_RE_HEXDECONLY, '');
     hSig = hSig.replace(/[ \n]+/g, "");
     var biSig = parseBigInt(hSig, 16);
@@ -6853,7 +7876,7 @@ function _rsasign_verifyString(sMsg, hSig) {
     var ff = function(s) { return KJUR.crypto.Util.hashString(s, algName); };
     var msgHashValue = ff(sMsg);
     return (diHashValue == msgHashValue);
-}
+};
 
 /**
  * verifies a sigature for a message string with RSA public key.<br/>
@@ -6866,7 +7889,7 @@ function _rsasign_verifyString(sMsg, hSig) {
  * @return returns 1 if valid, otherwise 0
  * @since rsasign 1.2.6
  */
-function _rsasign_verifyWithMessageHash(sHashHex, hSig) {
+RSAKey.prototype.verifyWithMessageHash = function(sHashHex, hSig) {
     hSig = hSig.replace(_RE_HEXDECONLY, '');
     hSig = hSig.replace(/[ \n]+/g, "");
     var biSig = parseBigInt(hSig, 16);
@@ -6879,11 +7902,11 @@ function _rsasign_verifyWithMessageHash(sHashHex, hSig) {
     var algName = digestInfoAry[0];
     var diHashValue = digestInfoAry[1];
     return (diHashValue == sHashHex);
-}
+};
 
 /**
  * verifies a sigature for a message string with RSA public key by PKCS#1 PSS sign.<br/>
- * @name verifyStringPSS
+ * @name verifyPSS
  * @memberOf RSAKey
  * @function
  * @param {String} sMsg message string to be verified.
@@ -6899,7 +7922,7 @@ function _rsasign_verifyWithMessageHash(sHashHex, hSig) {
  *        DEFAULT is -1. (NOTE: OpenSSL's default is -2.)
  * @return returns true if valid, otherwise false
  */
-function _rsasign_verifyStringPSS(sMsg, hSig, hashAlg, sLen) {
+RSAKey.prototype.verifyPSS = function(sMsg, hSig, hashAlg, sLen) {
     var hashFunc = function(sHex) { return KJUR.crypto.Util.hashHex(sHex, hashAlg); };
     var hHash = hashFunc(rstrtohex(sMsg));
 
@@ -6926,7 +7949,7 @@ function _rsasign_verifyStringPSS(sMsg, hSig, hashAlg, sLen) {
  * @return returns true if valid, otherwise false
  * @since rsasign 1.2.6
  */
-function _rsasign_verifyWithMessageHashPSS(hHash, hSig, hashAlg, sLen) {
+RSAKey.prototype.verifyWithMessageHashPSS = function(hHash, hSig, hashAlg, sLen) {
     var biSig = new BigInteger(hSig, 16);
 
     if (biSig.bitLength() > this.n.bitLength()) {
@@ -7002,29 +8025,8 @@ function _rsasign_verifyWithMessageHashPSS(hHash, hSig, hashAlg, sLen) {
 				     String.fromCharCode.apply(String, DB.slice(-sLen)))));
 }
 
-RSAKey.prototype.signWithMessageHash = _rsasign_signWithMessageHash;
-RSAKey.prototype.signString = _rsasign_signString;
-RSAKey.prototype.signStringWithSHA1 = _rsasign_signStringWithSHA1;
-RSAKey.prototype.signStringWithSHA256 = _rsasign_signStringWithSHA256;
-RSAKey.prototype.sign = _rsasign_signString;
-RSAKey.prototype.signWithSHA1 = _rsasign_signStringWithSHA1;
-RSAKey.prototype.signWithSHA256 = _rsasign_signStringWithSHA256;
-
-RSAKey.prototype.signWithMessageHashPSS = _rsasign_signWithMessageHashPSS;
-RSAKey.prototype.signStringPSS = _rsasign_signStringPSS;
-RSAKey.prototype.signPSS = _rsasign_signStringPSS;
 RSAKey.SALT_LEN_HLEN = -1;
 RSAKey.SALT_LEN_MAX = -2;
-
-RSAKey.prototype.verifyWithMessageHash = _rsasign_verifyWithMessageHash;
-RSAKey.prototype.verifyString = _rsasign_verifyString;
-RSAKey.prototype.verifyHexSignatureForMessage = _rsasign_verifyHexSignatureForMessage;
-RSAKey.prototype.verify = _rsasign_verifyString;
-RSAKey.prototype.verifyHexSignatureForByteArrayMessage = _rsasign_verifyHexSignatureForMessage;
-
-RSAKey.prototype.verifyWithMessageHashPSS = _rsasign_verifyWithMessageHashPSS;
-RSAKey.prototype.verifyStringPSS = _rsasign_verifyStringPSS;
-RSAKey.prototype.verifyPSS = _rsasign_verifyStringPSS;
 RSAKey.SALT_LEN_RECOVER = -2;
 
 /**
@@ -7344,17 +8346,17 @@ RSAKey.prototype.readPublicKeyFromPEMString = function (keyPEM)
 function _asnhex_getStartPosOfV_AtObj(s, pos)
 {
     "use strict";
-    return ASN1HEX.getStartPosOfV_AtObj(s, pos);
+    return ASN1HEX.getVidx(s, pos);
 }
 
 function _asnhex_getPosOfNextSibling_AtObj(s, pos)
 {
     "use strict";
-    return ASN1HEX.getPosOfNextSibling_AtObj(s, pos);
+    return ASN1HEX.getNextSiblingIdx(s, pos);
 }
 
 function _asnhex_getHexOfV_AtObj(s, pos)
 {
     "use strict";
-    return ASN1HEX.getHexOfV_AtObj(s, pos);
+    return ASN1HEX.getV(s, pos);
 }

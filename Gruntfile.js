@@ -3,8 +3,7 @@
 
 var mocha_options = {
     timeout: 10 * 60 * 1000,
-    reporter: 'dot',
-    bail: true
+    reporter: 'dot'
 };
 
 module.exports = function (grunt)
@@ -27,18 +26,19 @@ module.exports = function (grunt)
                 src: ['slowaes/trunk/js/aes.js',
                       'jsrsasign/ext/cj/cryptojs-312-core-fix.js',
                       'jsrsasign/ext/cj/sha256.js',
+                      'jsrsasign/ext/cj/sha1.js',
                       'pbkdf2.js',
                       'jsrsasign/ext/jsbn.js',
                       'jsrsasign/ext/jsbn2.js',
                       'jsrsasign/ext/base64.js',
-                      'jsrsasign/ext/sha1.js',
-                      'jsrsasign/ext/sha256.js',
+                      'paj/sha1.js',
+                      'paj/sha256.js',
                       'jsrsasign/ext/rsa.js',
                       'jsrsasign/ext/rsa2.js',
-                      'jsrsasign/asn1hex-1.1.js',
-                      'jsrsasign/base64x-1.1.js',
-                      'jsrsasign/crypto-1.1.js',
-                      'jsrsasign/rsasign-1.2.js',
+                      'jsrsasign/src/asn1hex-1.1.js',
+                      'jsrsasign/src/base64x-1.1.js',
+                      'jsrsasign/src/crypto-1.1.js',
+                      'jsrsasign/src/rsasign-1.2.js',
                       'js-rsa-pem/rsa-pem.js',
                       'lib/adapt.js'],
                 nonull: true
