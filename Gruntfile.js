@@ -11,7 +11,10 @@ module.exports = function (grunt)
     grunt.initConfig(
     {
         jshint: {
-            src: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ]
+            src: [ 'Gruntfile.js', 'lib/*.js', 'test/*.js', 'bench/**/*.js' ],
+            options: {
+                esversion: 6
+            }
         },
 
         concat: {
@@ -48,6 +51,10 @@ module.exports = function (grunt)
         env: {
             slow: {
                 SLOW: 'yes'
+            },
+
+            bslow: {
+                BSLOW: 'yes'
             }
         },
 
@@ -156,7 +163,12 @@ module.exports = function (grunt)
 
     grunt.registerTask('lint', 'jshint');
     grunt.registerTask('test', 'mochaTest:default');
-    grunt.registerTask('test-slow', ['build', 'env:slow', 'mochaTest:default']);
+    grunt.registerTask('test-slow', ['build',
+                                     'env:slow',
+                                     'mochaTest:default']);
+    grunt.registerTask('test-browser-slow', ['build',
+                                             'env:bslow',
+                                             'mochaTest:browser']);
     grunt.registerTask('test-browser', ['bgShell:bundle',
                                         'build',
                                         'bgShell:start_phantomjs',

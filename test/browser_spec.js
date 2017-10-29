@@ -58,11 +58,9 @@ describe('browser', function ()
                 r.err = ex.toString() + '\n' + ex.stack;
                 done(r);
             }
-        };
+        },
 
-        browser.executeAsync('return ' + f2 + '.apply(this, [' + f + '].concat(Array.prototype.slice.call(arguments)))',
-                        Array.prototype.slice.call(arguments, 1, arguments.length - 2),
-        function (err, r)
+        cb2 = function (err, r)
         {
             if (err)
             {
@@ -84,7 +82,26 @@ describe('browser', function ()
             {
                 cb(ex);
             }
-        });
+        };
+
+        if (process.env.BSLOW)
+        {
+            var simple_crypt = require('..');
+            global.Crypt = simple_crypt.SlowCrypt;
+            return f2.apply(this, [f].concat(
+                Array.prototype.slice.call(arguments, 1, arguments.length - 2),
+                [function (r)
+                {
+                    global.Crypt = simple_crypt.Crypt;
+                    cb2(null, r);
+                }]));
+        }
+
+        browser.executeAsync(
+            'return ' + f2 + '.apply(this, [' + f +
+                '].concat(Array.prototype.slice.call(arguments)))',
+            Array.prototype.slice.call(arguments, 1, arguments.length - 2),
+            cb2);
     },
 
     make_cb = function (cb, expect_error)
@@ -991,19 +1008,13 @@ describe('browser', function ()
         });
     });
 
-    before(function (cb)
+    if (!process.env.BSLOW)
     {
-        browser = wd.remote();
-
-        browser.init({ browserName: 'phantomjs' }, function (err)
+        before(function (cb)
         {
-            if (err)
-            {
-                cb(err);
-                return;
-            }
+            browser = wd.remote();
 
-            browser.get('test/fixtures/loader.html', function (err)
+            browser.init({ browserName: 'phantomjs' }, function (err)
             {
                 if (err)
                 {
@@ -1011,15 +1022,24 @@ describe('browser', function ()
                     return;
                 }
 
-                cb();
+                browser.get('test/fixtures/loader.html', function (err)
+                {
+                    if (err)
+                    {
+                        cb(err);
+                        return;
+                    }
+
+                    cb();
+                });
             });
         });
-    });
 
-    after(function ()
-    {
-        browser.quit();
-    });
+        after(function ()
+        {
+            browser.quit();
+        });
+    }
 
     it('should encrypt AES test vector plaintext and produce expected ciphertext', function (cb)
     {

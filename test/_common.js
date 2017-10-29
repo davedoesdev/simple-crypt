@@ -49,9 +49,9 @@ global.pub_pem = "-----BEGIN PUBLIC KEY-----\n" +
 global.priv_key = { priv_key: priv_pem };
 global.pub_key = { pub_key: pub_pem };
 
-var simple_crypt = require('..');
+let simple_crypt = require('..');
 
-if (process.env.SLOW)
+if (process.env.SLOW || process.env.BSLOW)
 {
     global.navigator = {
         appName: "Netscape"
@@ -61,7 +61,7 @@ if (process.env.SLOW)
         crypto: {
             getRandomValues: function (ua)
             {
-                var buf = require('crypto').randomBytes(ua.length), i;
+                let buf = require('crypto').randomBytes(ua.length), i;
 
                 for (i = 0; i < buf.length; i += 1)
                 {
@@ -77,7 +77,7 @@ if (process.env.SLOW)
 
         btoa: function (b)
         {
-            var arr = [], i;
+            let arr = [], i;
 
             for (i = 0; i < b.length; i += 1)
             {
@@ -93,7 +93,7 @@ if (process.env.SLOW)
         }
     };
 
-    var toString = String.prototype.toString;
+    let toString = String.prototype.toString;
 
     String.prototype.toString = function (encoding)
     {
@@ -115,7 +115,7 @@ if (process.env.SLOW)
     global.pub_key.slow_key = new RSAKey();
     global.pub_key.slow_key.readPublicKeyFromPEMString(pub_pem);
 
-    var parse_key = simple_crypt.SlowCrypt.parse_key;
+    let parse_key = simple_crypt.SlowCrypt.parse_key;
 
     simple_crypt.SlowCrypt.parse_key = function (key, cb)
     {
@@ -132,12 +132,15 @@ if (process.env.SLOW)
 
         parse_key(key, cb);
     };
+}
 
+if (process.env.SLOW)
+{
     global.Crypt = simple_crypt.SlowCrypt;
 }
 else
 {
-    var parse_key = simple_crypt.Crypt.parse_key;
+    let parse_key = simple_crypt.Crypt.parse_key;
 
     simple_crypt.Crypt.parse_key = function (key, cb)
     {
