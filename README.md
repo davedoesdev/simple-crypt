@@ -392,39 +392,44 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String | Buffer | Object} [key]` Optional key to use for operations using this object. 
-  - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key.
+- `{String | Buffer | Object} [key]` Optional key to use for operations using this object.
 
-  - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
 
-  - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size()](#cryptget_key_size). It will be used as a symmetric key for encryption or signing.
+    - If you pass a string which looks like it's PEM-encoded then it will be loaded as a RSA key.
 
-  - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
+    - If you pass an object then its `password`, `iterations` and optional `salt` properties will be used to derive a key using PBKDF2-SHA1. If you don't supply a salt then a random one is created. You can also supply an optional `progress` property, which must be a function and is called with the percentage completion as the key is derived.
 
-  - Note that how you exchange public keys, passwords or symmetric keys with other parties is beyond the scope of this library. You might consider using something like [Diffie-Hellman](http://nodejs.org/api/crypto.html#crypto_crypto_getdiffiehellman_group_name) to exchange symmetric keys but you might also need some kind of public key infrastructure to authenticate the message. That's just an example.
+    - Otherwise the key should be a `Buffer` or binary-encoded string, length equal to [get_key_size()](#cryptget_key_size). It will be used as a symmetric key for encryption or signing.
 
-  - Note also that if you intend to use the same key for multiple purposes, consider using a key derivation function to derive separate keys and call [Crypt.make](#cryptmakekey-options-cb) separately for each. For examples of key derivation functions, see the following:
+    - Omit the key (or pass `undefined`) if you intend to use one of the [dynamic key retrieval](#conditional-and-dynamic-key-operations) methods.
 
-    - [Recommendation for Key Derivation Using Pseudorandom Functions](http://csrc.nist.gov/publications/nistpubs/800-108/sp800-108.pdf)
+    - Note that how you exchange public keys, passwords or symmetric keys with other parties is beyond the scope of this library. You might consider using something like [Diffie-Hellman](http://nodejs.org/api/crypto.html#crypto_crypto_getdiffiehellman_group_name) to exchange symmetric keys but you might also need some kind of public key infrastructure to authenticate the message. That's just an example.
 
-    - [Recommendation for Key Derivation through Extraction-then-Expansion](http://csrc.nist.gov/publications/nistpubs/800-56C/SP-800-56C.pdf)
+    - Note also that if you intend to use the same key for multiple purposes, consider using a key derivation function to derive separate keys and call [Crypt.make](#cryptmakekey-options-cb) separately for each. For examples of key derivation functions, see the following:
 
-    - [HMAC-based Extract-and-Expand Key Derivation Function](http://tools.ietf.org/html/rfc5869)
+      - [Recommendation for Key Derivation Using Pseudorandom Functions](http://csrc.nist.gov/publications/nistpubs/800-108/sp800-108.pdf)
 
-- `{Object} [options]` Optional settings: 
-  - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
+      - [Recommendation for Key Derivation through Extraction-then-Expansion](http://csrc.nist.gov/publications/nistpubs/800-56C/SP-800-56C.pdf)
 
-  - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data.
+      - [HMAC-based Extract-and-Expand Key Derivation Function](http://tools.ietf.org/html/rfc5869)
 
-  - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
+- `{Object} [options]` Optional settings:
 
-  - `{Boolean} pad` Whether to automatically pad encrypted data (using PKCS#7) to a multiple of the AES block size (16 bytes). Default is `true`.
 
-- `{Function} [cb]` Optional function called with the `Crypt` object. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
 
-  - `{Crypt} crypt` The `Crypt` object. `key` (above) is parsed using [parse_key](#cryptparse_keykey-cb) and is available using [get_key](#cryptprototypeget_key).
+    - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data.
 
+    - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
+
+    - `{Boolean} pad` Whether to automatically pad encrypted data (using PKCS#7) to a multiple of the AES block size (16 bytes). Default is `true`.
+
+- `{Function} [cb]` Optional function called with the `Crypt` object. It's passed the following arguments:
+
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Crypt} crypt` The `Crypt` object. `key` (above) is parsed using [parse_key](#cryptparse_keykey-cb) and is available using [get_key](#cryptprototypeget_key).
 
 **Return:**
 
@@ -458,15 +463,17 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt.make](#cryptmakekey-options-cb). 
-- `{Function} cb` Function called with the parsed key. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{String | Buffer | Object} key` Key to parse. See the `key` parameter of [Crypt.make](#cryptmakekey-options-cb).
+- `{Function} cb` Function called with the parsed key. It's passed the following arguments:
 
-  - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is received. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is received:
 
-    - `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-    - `{Buffer|String} salt` Binary-encoded salt value which was used to derive `key`.
+    - `{String|Buffer|Object} key` Parsed key. You can pass this to [Crypt.make](#cryptmakekey-options-cb). If the key looks like a PEM-encoded RSA key then an internal RSA key object is received. If the key is an object (with `password`, `iterations` and optional `salt` properties) then an object with the following properties is received:
+
+      - `{Object} key` An AES encryption key derived using PBKDF2-SHA-1.
+
+      - `{Buffer|String} salt` Binary-encoded salt value which was used to derive `key`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -488,25 +495,29 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object | Buffer | String} data` The data to be encrypted. 
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
+- `{Object | Buffer | String} data` The data to be encrypted.
 
-  - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is prepended to the data before it's encrypted.
 
-  - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be padded to a multiple of 16 bytes.
+    - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
-- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. Length must be equal to [get_iv_size()](#cryptget_iv_size). 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `iv`, `data`, and `ekey` won't be Base64-encoded. It has the following properties:
+    - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is prepended to the data before it's encrypted.
 
-    - `{Buffer|String} iv` Initialisation vector used for the encryption.
+    - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be padded to a multiple of 16 bytes.
 
-    - `{Buffer|String} data` Encrypted data. 
+- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for AES encryption. If not supplied, a random one is created. Length must be equal to [get_iv_size()](#cryptget_iv_size).
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-    - `{Buffer|String} ekey` Encrypted AES key (only present when using RSA public key -- see above).
 
-    - `{Number} version` Internal version number for future compatibility checking.
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - `{Object} result` Result of the encryption. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `iv`, `data`, and `ekey` won't be Base64-encoded. It has the following properties:
+
+      - `{Buffer|String} iv` Initialisation vector used for the encryption.
+
+      - `{Buffer|String} data` Encrypted data. 
+
+      - `{Buffer|String} ekey` Encrypted AES key (only present when using RSA public key -- see above).
+
+      - `{Number} version` Internal version number for future compatibility checking.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -516,19 +527,23 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance. 
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's decrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
+- `{Object} data` A result object received from [encrypt](#cryptprototypeencryptdata-iv-cb). You may have received this from another party, for instance.
 
-  - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's decrypted. 
 
-  - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
+    - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's decrypted. Otherwise, you'll receive a `Buffer` (on Node.js) or binary-encoded string.
 
-  - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the decrypted data is expected to be padded to a multiple of 16 bytes and will be unpadded automatically.
+    - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's decrypted. 
 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - If you didn't pass `options.check` as `false` to [Crypt.make](#cryptmakekey-options-cb) then a SHA-256 checksum is expected to be prepended to the decrypted data. The checksum is verified against the rest of the decrypted data.
 
-  - `{Object|Buffer|String} data` The decrypted data.
+    - If you didn't pass `options.pad` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the decrypted data is expected to be padded to a multiple of 16 bytes and will be unpadded automatically.
+
+- `{Function} cb` Function called with the result. It's passed the following arguments:
+
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Object|Buffer|String} data` The decrypted data.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -538,18 +553,22 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object | Buffer | String} data` The data to be signed. 
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
+- `{Object | Buffer | String} data` The data to be signed.
 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of signing the data. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `data` and `signature` won't be Base64-encoded. It has the following properties:
 
-    - `{Buffer|String} data` The data that was signed.
+    - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-serialized before it's encrypted. Otherwise, it must be a `Buffer` or binary-encoded string.
 
-    - `{Buffer|String} signature` Signed hash of the data.
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-    - `{Number} version` Internal version number for future compatibility checking.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - `{Object} result` Result of signing the data. Typically you would JSON serialize this for transmission, unless you passed `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) in which case `data` and `signature` won't be Base64-encoded. It has the following properties:
+
+      - `{Buffer|String} data` The data that was signed.
+
+      - `{Buffer|String} signature` Signed hash of the data.
+
+      - `{Number} version` Internal version number for future compatibility checking.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -559,15 +578,19 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance. 
-  - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a  `Buffer` (on Node.js) or binary-encoded string.
+- `{Object} data` A result object received from [sign](#cryptprototypesigndata-cb). You may have received this from another party, for instance.
 
-  - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's verified.
 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - If you didn't pass `options.json` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be JSON-parsed after it's verified. Otherwise, you'll receive a  `Buffer` (on Node.js) or binary-encoded string.
 
-  - `{Object|Buffer|String} data` The verified data.
+    - If you didn't pass `options.base64` as `false` to [Crypt.make](#cryptmakekey-options-cb) then the data will be Base64-decoded before it's verified.
+
+- `{Function} cb` Function called with the result. It's passed the following arguments:
+
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Object|Buffer|String} data` The verified data.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -577,13 +600,15 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Buffer | String | Object} signing_key` Key to use for signing the data. 
-- `{Buffer | String | Object} encryption_key` Key to use for encrypting the data and signature. 
-- `{Object | Buffer | String} data` The data to be signed and encrypted. 
-- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for encryption. If not supplied, a random one is created. 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
-  - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprototypesigndata-cb).
+- `{Buffer | String | Object} signing_key` Key to use for signing the data.
+- `{Buffer | String | Object} encryption_key` Key to use for encrypting the data and signature.
+- `{Object | Buffer | String} data` The data to be signed and encrypted.
+- `{Buffer | String} [iv]` Optional initialisation vector (salt) to use for encryption. If not supplied, a random one is created.
+- `{Function} cb` Function called with the result. It's passed the following arguments:
+
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+    - `{Object} result` Result of signing and encrypting the data. See the description of `cb` for [sign](#cryptprototypesigndata-cb).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -593,13 +618,15 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data and signature. 
-- `{Buffer | String | Object} verifying_key` Key to use for verifying the signature. 
-- `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb). 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data and signature.
+- `{Buffer | String | Object} verifying_key` Key to use for verifying the signature.
+- `{Object} data` A result object received from [sign_encrypt_sign](#cryptsign_encrypt_signsigning_key-encryption_key-data-iv-cb).
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-  - `{Object|Buffer|String} data` The decrypted and verified data.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Object|Buffer|String} data` The decrypted and verified data.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -609,31 +636,35 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Boolean} encrypt` Whether to encrypt the data. 
-- `{Object | Buffer | String} data` The data to encrypt. 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Boolean} encrypt` Whether to encrypt the data.
+- `{Object | Buffer | String} data` The data to encrypt.
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-  - `{Object} result` Result object with the following properties:
-
-    - `{Boolean} encrypted` Whether the data was encrypted.
-
-    - `{Object} data` Encryption result (data, initialisation vector etc) if the data was encrypted, otherwise the data.
-
-    - `{Object} [key_data]` If the data was encrypted and `get_key` was called (see below) then this is the key data received from `get_key`.
-
-- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
-  - The arguments to `maybe_encrypt` that follow `get_key` (if any).
-
-  - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
 
     - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-    - `{Object|Buffer|String} key` The encryption key. If this is a falsey value then the data won't be encrypted.
+    - `{Object} result` Result object with the following properties:
 
-    - `{Object} [key_data]` Optional metadata for the key. This is included in the result (see above).
+      - `{Boolean} encrypted` Whether the data was encrypted.
 
-    - `{Buffer|String} [iv]` Optional initialisation vector.
+      - `{Object} data` Encryption result (data, initialisation vector etc) if the data was encrypted, otherwise the data.
+
+      - `{Object} [key_data]` If the data was encrypted and `get_key` was called (see below) then this is the key data received from `get_key`.
+
+- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
+
+
+    - The arguments to `maybe_encrypt` that follow `get_key` (if any).
+
+    - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
+
+      - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+      - `{Object|Buffer|String} key` The encryption key. If this is a falsey value then the data won't be encrypted.
+
+      - `{Object} [key_data]` Optional metadata for the key. This is included in the result (see above).
+
+      - `{Buffer|String} [iv]` Optional initialisation vector.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -643,22 +674,26 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key). 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Object} data` A result object received from [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key).
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-  - `{Object|Buffer|String} data` If the data was encrypted then the decrypted data otherwise the data.
-
-- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
-  - The arguments to `maybe_decrypt` that follow `get_key` (if any).
-
-  - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
 
     - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-    - `{Object|Buffer|String} key` The decryption key.
+    - `{Object|Buffer|String} data` If the data was encrypted then the decrypted data otherwise the data.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key) (if any).
+- `{Function} [get_key]` Optional function to call in order to get the encryption key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
+
+
+    - The arguments to `maybe_decrypt` that follow `get_key` (if any).
+
+    - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
+
+      - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+      - `{Object|Buffer|String} key` The decryption key.
+
+    - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_encrypt](#cryptprototypemaybe_encryptencrypt-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -668,29 +703,33 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Boolean} sign` Whether to sign the data. 
-- `{Object | Buffer | String} data` The data to sign. 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Boolean} sign` Whether to sign the data.
+- `{Object | Buffer | String} data` The data to sign.
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-  - `{Object} result` Result object with the following properties:
-
-    - `{Boolean} signed` Whether the data was signed.
-
-    - `{Object} data` Signing result (data, signature etc) if the data was signed, otherwise the data.
-
-    - `{Object} [key_data]` If the data was signed and `get_key` was called (see below) then this is the key data received from `get_key`.
-
-- `{Function} [get_key]` Optional function to call in order to get the signing key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
-  - The arguments to `maybe_sign` that follow `get_key` (if any).
-
-  - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
 
     - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-    - `{Object|Buffer|String} key` The signing key. If this is a falsey value then the data won't be signed.
+    - `{Object} result` Result object with the following properties:
 
-    - `{Object} [key_data]` Optional metadata for the key. This is included in the result (see above).
+      - `{Boolean} signed` Whether the data was signed.
+
+      - `{Object} data` Signing result (data, signature etc) if the data was signed, otherwise the data.
+
+      - `{Object} [key_data]` If the data was signed and `get_key` was called (see below) then this is the key data received from `get_key`.
+
+- `{Function} [get_key]` Optional function to call in order to get the signing key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
+
+
+    - The arguments to `maybe_sign` that follow `get_key` (if any).
+
+    - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
+
+      - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+      - `{Object|Buffer|String} key` The signing key. If this is a falsey value then the data won't be signed.
+
+      - `{Object} [key_data]` Optional metadata for the key. This is included in the result (see above).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -700,22 +739,26 @@ slow|3,130|3,129,778|801
 
 **Parameters:**
 
-- `{Object} data` A result object received from [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key). 
-- `{Function} cb` Function called with the result. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Object} data` A result object received from [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key).
+- `{Function} cb` Function called with the result. It's passed the following arguments:
 
-  - `{Object|Buffer|String} data` If the data was signed then the verified data otherwise the data.
-
-- `{Function} [get_key]` Optional function to call in order to get the verifying key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments: 
-  - The arguments to `maybe_verify` that follow `get_key` (if any).
-
-  - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
 
     - `{Object} err` If an error occurred then details of the error, otherwise `null`.
 
-    - `{Object|Buffer|String} key` The verifying key.
+    - `{Object|Buffer|String} data` If the data was signed then the verified data otherwise the data.
 
-  - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key) (if any).
+- `{Function} [get_key]` Optional function to call in order to get the verifying key. You must supply this if you didn't supply a key when creating the `Crypt` object. `get_key` is called with the following arguments:
+
+
+    - The arguments to `maybe_verify` that follow `get_key` (if any).
+
+    - `{Function} got_key` Function to call with the key. You should call it with the following arguments:
+
+      - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+      - `{Object|Buffer|String} key` The verifying key.
+
+    - `{Object} [key_data]` Metadata for the key which was supplied in [maybe_sign](#cryptprototypemaybe_signsign-data-cb-get_key) (if any).
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt.prototype](#toc_cryptprototype)</sub>
 
@@ -728,13 +771,15 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} key` Key to use for encryping the data in the stream. 
-- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to encrypt. 
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
-- `{Function} cb` Function called with the encrypted stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} key` Key to use for encryping the data in the stream.
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to encrypt.
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Function} cb` Function called with the encrypted stream. It's passed the following arguments:
 
-  - `{Readable} enc_s` The encrypted data stream. Any encryption errors will be emitted as `error` events on `enc_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} enc_s` The encrypted data stream. Any encryption errors will be emitted as `error` events on `enc_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -744,13 +789,15 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} key` Key to use for decrypting the data in the stream. 
-- `{Readable} s` The encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to decrypt. 
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
-- `{Function} cb` Function called with the decrypted stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} key` Key to use for decrypting the data in the stream.
+- `{Readable} s` The encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to decrypt.
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Function} cb` Function called with the decrypted stream. It's passed the following arguments:
 
-  - `{Readable} dec_s` The decrypted data stream. Any decryption errors will be emitted as `error` events on `dec_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} dec_s` The decrypted data stream. Any decryption errors will be emitted as `error` events on `dec_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -763,13 +810,15 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} key` Key to use for signing the data in the stream. 
-- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign. 
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
-- `{Function} cb` Function called with the signed stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} key` Key to use for signing the data in the stream.
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign.
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Function} cb` Function called with the signed stream. It's passed the following arguments:
 
-  - `{Readable} sig_s` The signed data stream. Any signing errors will be emitted as `error` events on `sig_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} sig_s` The signed data stream. Any signing errors will be emitted as `error` events on `sig_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -779,13 +828,15 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} key` Key to use for verifying the data in the stream. 
-- `{Readable} s` The signed [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify. 
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
-- `{Function} cb` Function called with the verified stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} key` Key to use for verifying the data in the stream.
+- `{Readable} s` The signed [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify.
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Function} cb` Function called with the verified stream. It's passed the following arguments:
 
-  - `{Readable} ver_s` The verified data stream. Any verification errors will be emitted as `error` events on `ver_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} ver_s` The verified data stream. Any verification errors will be emitted as `error` events on `ver_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -795,14 +846,16 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} signing_key` Key to use for signing the data in the stream. 
-- `{Buffer | String | Object} encryption_key` Key to use for encryping the data in the stream. 
-- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign and encrypt. 
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts). 
-- `{Function} cb` Function called with the signed and encrypted stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} signing_key` Key to use for signing the data in the stream.
+- `{Buffer | String | Object} encryption_key` Key to use for encryping the data in the stream.
+- `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign and encrypt.
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Function} cb` Function called with the signed and encrypted stream. It's passed the following arguments:
 
-  - `{Readable} sig_enc_s` The signed and encrypted data stream. Any signing or encryption errors will be emitted as `error` events on `sig_enc_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} sig_enc_s` The signed and encrypted data stream. Any signing or encryption errors will be emitted as `error` events on `sig_enc_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
@@ -812,14 +865,16 @@ preceding chunk.
 
 **Parameters:**
 
-- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data in the stream. 
-- `{Buffer | String | Object} verifying_key` Key to use for verifying the data in the stream. 
-- `{Readable} s` The signed and encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify and decrypt. 
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts). 
-- `{Function} cb` Function called with the verified and decrypted stream. It's passed the following arguments: 
-  - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+- `{Buffer | String | Object} decryption_key` Key to use for decrypting the data in the stream.
+- `{Buffer | String | Object} verifying_key` Key to use for verifying the data in the stream.
+- `{Readable} s` The signed and encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify and decrypt.
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Function} cb` Function called with the verified and decrypted stream. It's passed the following arguments:
 
-  - `{Readable} ver_dec_s` The verified and decrypted data stream. Any verification or decryption errors will be emitted as `error` events on `ver_dec_s`.
+
+    - `{Object} err` If an error occurred then details of the error, otherwise `null`.
+
+    - `{Readable} ver_dec_s` The verified and decrypted data stream. Any verification or decryption errors will be emitted as `error` events on `ver_dec_s`.
 
 <sub>Go: [TOC](#tableofcontents) | [Crypt](#toc_crypt)</sub>
 
