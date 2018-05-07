@@ -3996,7 +3996,7 @@ function byte2Hex(b) {
 // PKCS#1 (type 2, random) pad input string s to n bytes, and return a bigint
 function pkcs1pad2(s,n) {
   if(n < s.length + 11) { // TODO: fix for utf-8
-    alert("Message too long for RSA");
+    throw "Message too long for RSA";
     return null;
   }
   var ba = new Array();
@@ -4331,7 +4331,7 @@ function RSASetPrivate(N,E,D) {
     this.d = parseBigInt(D,16);
   }
   else
-    alert("Invalid RSA private key");
+    throw "Invalid RSA private key";
 }
 
 // Set the private key fields N, e, d and CRT params from hex strings
@@ -4353,7 +4353,7 @@ function RSASetPrivateEx(N,E,D,P,Q,DP,DQ,C) {
     this.dmq1 = parseBigInt(DQ,16);
     this.coeff = parseBigInt(C,16);
   } else {
-    alert("Invalid RSA private key in RSASetPrivateEx");
+    throw "Invalid RSA private key in RSASetPrivateEx";
   }
 }
 
@@ -5156,30 +5156,27 @@ ASN1HEX.oidname = function(oidDotOrHex) {
 };
 
 
-/* base64x-1.1.12 (c) 2012-2017 Kenji Urushima | kjur.github.com/jsrsasign/license
+/* base64x-1.1.14 (c) 2012-2018 Kenji Urushima | kjur.github.com/jsrsasign/license
  */
 /*
  * base64x.js - Base64url and supplementary functions for Tom Wu's base64.js library
  *
- * version: 1.1.12 (2017-Jun-03)
+ * version: 1.1.14 (2018-Apr-21)
  *
- * Copyright (c) 2012-2017 Kenji Urushima (kenji.urushima@gmail.com)
+ * Copyright (c) 2012-2018 Kenji Urushima (kenji.urushima@gmail.com)
  *
  * This software is licensed under the terms of the MIT License.
- * https://kjur.github.io/jsjws/license/
+ * https://kjur.github.io/jsrsasign/license
  *
  * The above copyright and license notice shall be 
  * included in all copies or substantial portions of the Software.
- *
- * DEPENDS ON:
- *   - base64.js - Tom Wu's Base64 library
  */
 
 /**
  * @fileOverview
  * @name base64x-1.1.js
  * @author Kenji Urushima kenji.urushima@gmail.com
- * @version jsrsasign 7.2.1 base64x 1.1.12 (2017-Jun-03)
+ * @version jsrsasign 8.0.12 base64x 1.1.14 (2018-Apr-22)
  * @since jsrsasign 2.1
  * @license <a href="https://kjur.github.io/jsrsasign/license/">MIT License</a>
  */
@@ -5898,6 +5895,174 @@ function uricmptohex(s) {
  */
 function hextouricmp(s) {
   return s.replace(/(..)/g, "%$1");
+}
+
+// ==== hex / ipv6 =================================
+
+/**
+ * convert any IPv6 address to a 16 byte hexadecimal string
+ * @function
+ * @param s string of IPv6 address
+ * @return {String} 16 byte hexadecimal string of IPv6 address
+ * @description
+ * This function converts any IPv6 address representation string
+ * to a 16 byte hexadecimal string of address.
+ * @example
+ * 
+ */
+function ipv6tohex(s) {
+  var msgMalformedAddress = "malformed IPv6 address";
+  if (! s.match(/^[0-9A-Fa-f:]+$/))
+    throw msgMalformedAddress;
+
+  // 1. downcase
+  s = s.toLowerCase();
+
+  // 2. expand ::
+  var num_colon = s.split(':').length - 1;
+  if (num_colon < 2) throw msgMalformedAddress;
+  var colon_replacer = ':'.repeat(7 - num_colon + 2);
+  s = s.replace('::', colon_replacer);
+
+  // 3. fill zero
+  var a = s.split(':');
+  if (a.length != 8) throw msgMalformedAddress;
+  for (var i = 0; i < 8; i++) {
+    a[i] = ("0000" + a[i]).slice(-4);
+  }
+  return a.join('');
+}
+
+/**
+ * convert a 16 byte hexadecimal string to RFC 5952 canonicalized IPv6 address<br/>
+ * @name hextoipv6
+ * @function
+ * @param {String} s hexadecimal string of 16 byte IPv6 address
+ * @return {String} IPv6 address string canonicalized by RFC 5952
+ * @since jsrsasign 8.0.10 base64x 1.1.13
+ * @description
+ * This function converts a 16 byte hexadecimal string to 
+ * <a href="https://tools.ietf.org/html/rfc5952">RFC 5952</a>
+ * canonicalized IPv6 address string.
+ * @example
+ * hextoip("871020010db8000000000000000000000004") &rarr "2001:db8::4"
+ * hextoip("871020010db8000000000000000000") &rarr raise exception
+ * hextoip("xyzxyzxyzxyzxyzxyzxyzxyzxyzxyzxyzxyz") &rarr raise exception
+ */
+function hextoipv6(s) {
+  if (! s.match(/^[0-9A-Fa-f]{32}$/))
+    throw "malformed IPv6 address octet";
+
+  // 1. downcase
+  s = s.toLowerCase();
+
+  // 2. split 4
+  var a = s.match(/.{1,4}/g);
+
+  // 3. trim leading 0
+  for (var i = 0; i < 8; i++) {
+    a[i] = a[i].replace(/^0+/, "");
+    if (a[i] == '') a[i] = '0';
+  }
+  s = ":" + a.join(":") + ":";
+
+  // 4. find shrinkables :0:0:...
+  var aZero = s.match(/:(0:){2,}/g);
+
+  // 5. no shrinkable
+  if (aZero === null) return s.slice(1, -1);
+
+  // 6. find max length :0:0:...
+  var item = '';
+  for (var i = 0; i < aZero.length; i++) {
+    if (aZero[i].length > item.length) item = aZero[i];
+  }
+
+  // 7. shrink
+  s = s.replace(item, '::');
+  return s.slice(1, -1);
+}
+
+// ==== hex / ip =================================
+
+/**
+ * convert a hexadecimal string to IP addresss<br/>
+ * @name hextoip
+ * @function
+ * @param {String} s hexadecimal string of IP address
+ * @return {String} IP address string
+ * @since jsrsasign 8.0.10 base64x 1.1.13
+ * @description
+ * This function converts a hexadecimal string of IPv4 or 
+ * IPv6 address to IPv4 or IPv6 address string.
+ * If byte length is not 4 nor 16, this returns a
+ * hexadecimal string without conversion.
+ * @see {@link hextoipv6}
+ * @example
+ * hextoip("c0a80101") &rarr "192.168.1.1"
+ * hextoip("871020010db8000000000000000000000004") &rarr "2001:db8::4"
+ * hextoip("c0a801010203") &rarr "c0a801010203" // 6 bytes
+ * hextoip("zzz")) &rarr raise exception because of not hexadecimal
+ */
+function hextoip(s) {
+  var malformedMsg = "malformed hex value";
+  if (! s.match(/^([0-9A-Fa-f][0-9A-Fa-f]){1,}$/))
+    throw malformedMsg;
+  if (s.length == 8) { // ipv4
+    var ip;
+    try {
+      ip = parseInt(s.substr(0, 2), 16) + "." +
+           parseInt(s.substr(2, 2), 16) + "." +
+           parseInt(s.substr(4, 2), 16) + "." +
+           parseInt(s.substr(6, 2), 16);
+      return ip;
+    } catch (ex) {
+      throw malformedMsg;
+    }
+  } else if (s.length == 32) {
+    return hextoipv6(s);
+  } else {
+    return s;
+  }
+}
+
+/**
+ * convert IPv4/v6 addresss to a hexadecimal string<br/>
+ * @name iptohex
+ * @function
+ * @param {String} s IPv4/v6 address string
+ * @return {String} hexadecimal string of IP address
+ * @since jsrsasign 8.0.12 base64x 1.1.14
+ * @description
+ * This function converts IPv4 or IPv6 address string to
+ * a hexadecimal string of IPv4 or IPv6 address.
+ * @example
+ * iptohex("192.168.1.1") &rarr "c0a80101"
+ * iptohex("2001:db8::4") &rarr "871020010db8000000000000000000000004"
+ * iptohex("zzz")) &rarr raise exception
+ */
+function iptohex(s) {
+  var malformedMsg = "malformed IP address";
+  s = s.toLowerCase(s);
+
+  if (s.match(/^[0-9.]+$/)) {
+    var a = s.split(".");
+    if (a.length !== 4) throw malformedMsg;
+    var hex = "";
+    try {
+      for (var i = 0; i < 4; i++) {
+        var d = parseInt(a[i]);
+        hex += ("0" + d.toString(16)).slice(-2);
+      }
+      return hex;
+    } catch(ex) {
+      throw malformedMsg;
+    }
+  } else if (s.match(/^[0-9a-f:]+$/) && s.indexOf(":") !== -1) {
+    return ipv6tohex(s);
+  } else {
+    throw malformedMsg;
+  }
 }
 
 // ==== URIComponent ================================

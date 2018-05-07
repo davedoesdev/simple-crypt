@@ -729,7 +729,10 @@ describe('errors', function ()
                 iterations: 'hello'
             }, function (err)
             {
-                expect(err.message).to.equal('Iterations not a number');
+                expect(err.message).to.be.oneOf([
+                    'Iterations not a number',
+                    'The "iterations" argument must be of type number. Received type string'
+                ]);
 
                 sinon.stub(crypto, 'pbkdf2').callsFake(function (password, salt, iterations, keylen, digest, callback)
                 {
