@@ -418,7 +418,7 @@ slow|3,130|3,129,778|801
 
     - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
 
-    - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data.
+    - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data. Default is `true`.
 
     - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
 
