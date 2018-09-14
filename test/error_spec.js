@@ -24,7 +24,7 @@ describe('errors', function ()
 
     beforeEach(function ()
     {
-        this.sinon = sinon.sandbox.create();
+        this.sinon = sinon.createSandbox();
     });
 
     afterEach(function ()
