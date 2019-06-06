@@ -314,7 +314,7 @@ describe('errors', function ()
                         expect(err.message).to.equal('Message length is less than zero');
                         cb();
                     });
-                    s.write(new Buffer([0xff, 0xff, 0xff, 0xff]));
+                    s.write(Buffer.from([0xff, 0xff, 0xff, 0xff]));
                 });
             });
         }
@@ -386,43 +386,43 @@ describe('errors', function ()
                                                 {
                                                     fs.write(ev.iv, 'binary');
                                                     fs.write(ev.data, 'binary');
-                                                    var buf = new Buffer(4);
+                                                    var buf = Buffer.alloc(4);
                                                     buf.writeUInt32BE(Crypt.get_version());
                                                     fs.write(buf);
-                                                    fs.write(new Buffer([0]));
+                                                    fs.write(Buffer.from([0]));
                                                     encrypter.encrypt('\u0001hello', iv, function (err, ev)
                                                     {
                                                         expect(err).to.equal(null);
                                                         fs.write(ev.iv, 'binary');
                                                         fs.write(ev.data, 'binary');
-                                                        var buf = new Buffer(4);
+                                                        var buf = Buffer.alloc(4);
                                                         buf.writeUInt32BE(Crypt.get_version());
                                                         fs.write(buf);
-                                                        fs.write(new Buffer([0]));
+                                                        fs.write(Buffer.from([0]));
                                                     });
                                                 });
                                             }, function (fs, ds)
                                             {
                                                 fs.write(ev.iv, 'binary');
                                                 fs.write(ev.data, 'binary');
-                                                var buf = new Buffer(4);
+                                                var buf = Buffer.alloc(4);
                                                 buf.writeUInt32BE(Crypt.get_version());
                                                 fs.write(buf);
-                                                fs.write(new Buffer([0]));
+                                                fs.write(Buffer.from([0]));
                                                 fs.write(ev.iv, 'binary');
                                                 fs.write(ev.data, 'binary');
                                                 fs.write(buf);
-                                                fs.write(new Buffer([0]));
+                                                fs.write(Buffer.from([0]));
                                             });
                                         });
                                     }, function (fs, ds)
                                     {
                                         fs.write(ev.iv, 'binary');
                                         fs.write(ev.data, 'binary');
-                                        var buf = new Buffer(4);
+                                        var buf = Buffer.alloc(4);
                                         buf.writeUInt32BE(Crypt.get_version());
                                         fs.write(buf);
-                                        fs.write(new Buffer([0]));
+                                        fs.write(Buffer.from([0]));
                                     });
                                 });
                             });
@@ -430,16 +430,16 @@ describe('errors', function ()
                         {
                             fs.write(iv);
                             fs.write('hello');
-                            var buf = new Buffer(4);
+                            var buf = Buffer.alloc(4);
                             buf.writeUInt32BE(Crypt.get_version());
                             fs.write(buf);
-                            fs.write(new Buffer([0]));
+                            fs.write(Buffer.from([0]));
                         });
                     }, function (fs, ds)
                     {
                         fs.write(iv);
                         fs.write('hello');
-                        var buf = new Buffer(4);
+                        var buf = Buffer.alloc(4);
                         buf.writeUInt32BE(Crypt.get_version());
                         fs.write(buf);
                         ds.write('');
@@ -491,7 +491,7 @@ describe('errors', function ()
                                             {
                                                 fs.write(sv.signature, 'binary');
                                                 fs.write(sv.data, 'binary');
-                                                var buf = new Buffer(4);
+                                                var buf = Buffer.alloc(4);
                                                 buf.writeUInt32BE(Crypt.get_version());
                                                 fs.write(buf);
                                                 signer.sign('\u0001hello', function (err, sv)
@@ -499,7 +499,7 @@ describe('errors', function ()
                                                     expect(err).to.equal(null);
                                                     fs.write(sv.signature, 'binary');
                                                     fs.write(sv.data, 'binary');
-                                                    var buf = new Buffer(4);
+                                                    var buf = Buffer.alloc(4);
                                                     buf.writeUInt32BE(Crypt.get_version());
                                                     fs.write(buf);
                                                 });
@@ -508,7 +508,7 @@ describe('errors', function ()
                                         {
                                             fs.write(sv.signature, 'binary');
                                             fs.write(sv.data, 'binary');
-                                            var buf = new Buffer(4);
+                                            var buf = Buffer.alloc(4);
                                             buf.writeUInt32BE(Crypt.get_version());
                                             fs.write(buf);
                                             fs.write(sv.signature, 'binary');
@@ -520,7 +520,7 @@ describe('errors', function ()
                                 {
                                     fs.write(sv.signature, 'binary');
                                     fs.write(sv.data, 'binary');
-                                    var buf = new Buffer(4);
+                                    var buf = Buffer.alloc(4);
                                     buf.writeUInt32BE(Crypt.get_version());
                                     fs.write(buf);
                                 });
@@ -530,7 +530,7 @@ describe('errors', function ()
                     {
                         fs.write('sig');
                         fs.write('hello');
-                        var buf = new Buffer(4);
+                        var buf = Buffer.alloc(4);
                         buf.writeUInt32BE(Crypt.get_version());
                         fs.write(buf);
                     });
@@ -684,7 +684,7 @@ describe('errors', function ()
             expect(err).to.equal(null);
             if (process.env.SLOW)
             {
-                expect(new Buffer(crypt.key).toString('binary')).to.equal(key);
+                expect(Buffer.from(crypt.key).toString('binary')).to.equal(key);
             }
             else
             {
@@ -790,7 +790,7 @@ describe('errors', function ()
         }, function (err, crypt)
         {
             expect(err).to.equal(null);
-            crypt.encrypt(new Buffer('hello'), function (err, edata)
+            crypt.encrypt(Buffer.from('hello'), function (err, edata)
             {
                 expect(err).to.equal(null);
                 if (process.env.SLOW)
@@ -838,11 +838,11 @@ describe('errors', function ()
         }, function (err, crypt)
         {
             expect(err).to.equal(null);
-            crypt.sign(new Buffer('hello'), function (err, sdata)
+            crypt.sign(Buffer.from('hello'), function (err, sdata)
             {
                 sdata.signature = process.env.SLOW ?
                         sdata.signature + '\0' :
-                        Buffer.concat([sdata.signature, new Buffer([0])]);
+                        Buffer.concat([sdata.signature, Buffer.from([0])]);
                 crypt.verify(sdata, function (err)
                 {
                     expect(err.message).to.equal('digest mismatch');

@@ -122,7 +122,7 @@ describe('encrypt_decrypt_symmetric', function ()
             crypt.encrypt('hello', 'initzn vector   ', function (err, edata)
             {
                 expect(err).to.equal(null);
-                expect(edata.iv).to.equal(new Buffer('initzn vector   ', 'binary').toString('base64'));
+                expect(edata.iv).to.equal(Buffer.from('initzn vector   ', 'binary').toString('base64'));
                 crypt.decrypt(edata, function (err, ddata)
                 {
                     expect(err).to.equal(null);
@@ -139,7 +139,7 @@ describe('encrypt_decrypt_symmetric', function ()
                             expect(err).to.equal(null);
                             expect(edata.iv).to.eql(process.env.SLOW ?
                                     'initzn vector   ' :
-                                    new Buffer('initzn vector   ', 'binary'));
+                                    Buffer.from('initzn vector   ', 'binary'));
                             crypt.decrypt(edata, function (err, ddata)
                             {
                                 expect(err).to.equal(null);

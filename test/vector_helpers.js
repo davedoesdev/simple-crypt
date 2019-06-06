@@ -104,10 +104,10 @@ exports.read_aes_vectors = function (cb)
 
                             tasks.push(
                             {
-                                key: new Buffer(key, 'hex'),
-                                iv: new Buffer(iv, 'hex'),
-                                plaintext: new Buffer(plaintext, 'hex'),
-                                ciphertext: new Buffer(ciphertext, 'hex')
+                                key: Buffer.from(key, 'hex'),
+                                iv: Buffer.from(iv, 'hex'),
+                                plaintext: Buffer.from(plaintext, 'hex'),
+                                ciphertext: Buffer.from(ciphertext, 'hex')
                             });
                         }
                     }
@@ -205,9 +205,9 @@ exports.read_hmac_vectors = function (cb)
 
                     tasks.push(
                     {
-                        key: new Buffer(key2, 'hex'),
-                        msg: new Buffer(msg2, 'hex'),
-                        mac: new Buffer(mac2, 'hex')
+                        key: Buffer.from(key2, 'hex'),
+                        msg: Buffer.from(msg2, 'hex'),
+                        mac: Buffer.from(mac2, 'hex')
                     });
                 }
             }

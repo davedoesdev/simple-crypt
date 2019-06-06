@@ -130,7 +130,7 @@ describe('browser', function ()
 
         if (type === 'string')
         {
-            return new Buffer(key).toString('base64');
+            return Buffer.from(key).toString('base64');
         }
 
         if (key.password)
@@ -511,7 +511,7 @@ describe('browser', function ()
                 if (salt)
                 {
                     decrypt_key = Object.create(decrypt_key);
-                    decrypt_key.salt = new Buffer(salt, 'base64');
+                    decrypt_key.salt = Buffer.from(salt, 'base64');
                 }
 
                 Crypt.make(decrypt_key, function (err, decrypt)
@@ -911,7 +911,7 @@ describe('browser', function ()
                 if (salt)
                 {
                     verifying_key = Object.create(verifying_key);
-                    verifying_key.salt = new Buffer(salt, 'base64');
+                    verifying_key.salt = Buffer.from(salt, 'base64');
                 }
 
                 Crypt.make(verifying_key, function (err, verify)
@@ -1313,7 +1313,7 @@ describe('browser', function ()
                     r += String.fromCharCode(a);
                 }
 
-                return new Buffer(r, 'binary');
+                return Buffer.from(r, 'binary');
             }
 
             var key = random_buf(Crypt.get_key_size()),

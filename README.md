@@ -236,7 +236,7 @@ Crypt.sign_encrypt_sign(priv_pem, pub_pem, data, function (err, data_out)
 ```javascript
 Crypt.make('some signing key', { json: false }, function (err, signer)
 {
-    signer.sign(new Buffer('"hello"'), function (err, signed)
+    signer.sign(Buffer.from('"hello"'), function (err, signed)
     {
         this.verify(signed, function (err, verified)
         {
@@ -418,7 +418,7 @@ slow|3,130|3,129,778|801
 
     - `{Boolean} json` Whether to JSON encode and decode data. Default is `true`.
 
-    - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data. Default is `true`.
+    - `{Boolean} base64` Whether to Base64-encode generated data and Base64-decode received data.
 
     - `{Boolean} check` Whether to add a checksum to encrypted data and verify it when decrypting data. Default is `true`.
 

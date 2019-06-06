@@ -72,7 +72,7 @@ if (process.env.SLOW || process.env.BSLOW)
 
         atob: function (a)
         {
-            return String.fromCharCode.apply(String, new Buffer(a, 'base64'));
+            return String.fromCharCode.apply(String, Buffer.from(a, 'base64'));
         },
 
         btoa: function (b)
@@ -84,7 +84,7 @@ if (process.env.SLOW || process.env.BSLOW)
                 arr.push(b.charCodeAt(i));
             }
 
-            return new Buffer(arr).toString('base64');
+            return Buffer.from(arr).toString('base64');
         },
 
         location: {
