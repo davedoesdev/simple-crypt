@@ -22,7 +22,7 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Statements</span>
-        <span class='fraction'>709/709</span>
+        <span class='fraction'>710/710</span>
       </div>
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
@@ -37,7 +37,7 @@
       <div class='fl pad1y space-right2'>
         <span class="strong">100% </span>
         <span class="quiet">Lines</span>
-        <span class='fraction'>704/704</span>
+        <span class='fraction'>705/705</span>
       </div>
     </div>
     <p class="quiet">
@@ -1917,7 +1917,11 @@
 <a name='L1869'></a><a href='#L1869'>1869</a>
 <a name='L1870'></a><a href='#L1870'>1870</a>
 <a name='L1871'></a><a href='#L1871'>1871</a>
-<a name='L1872'></a><a href='#L1872'>1872</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1872'></a><a href='#L1872'>1872</a>
+<a name='L1873'></a><a href='#L1873'>1873</a>
+<a name='L1874'></a><a href='#L1874'>1874</a>
+<a name='L1875'></a><a href='#L1875'>1875</a>
+<a name='L1876'></a><a href='#L1876'>1876</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2994,9 +2998,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">32x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3088,6 +3094,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">32x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">332x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4859,22 +4867,24 @@ if (typeof require === 'function')
                 {
                     if (key.indexOf('PUBLIC KEY') &gt; 0)
                     {
-                        return cb2(null, {
-                            key: key,
+                        return cb2(null,
+                        {
+                            key: crypto.createPublicKey(key),
                             is_public: true
                         });
                     }
 &nbsp;
                     if (key.indexOf('PRIVATE KEY') &gt; 0)
                     {
-                        return cb2(null, {
-                            key: key,
+                        return cb2(null,
+                        {
+                            key: crypto.createPrivateKey(key),
                             is_private: true
                         });
                     }
                 }
 &nbsp;
-                cb2(null, Buffer.from(key, 'binary'));
+                cb2(null, crypto.createSecretKey(Buffer.from(key, 'binary')));
             }
             else if (key &amp;&amp; key.password)
             {
@@ -4903,7 +4913,7 @@ if (typeof require === 'function')
 &nbsp;
                     cb2(null,
                     {
-                        key: derived_key,
+                        key: crypto.createSecretKey(derived_key),
                         salt: salt
                     });
                 });
@@ -4947,18 +4957,20 @@ if (typeof require === 'function')
 &nbsp;
             if (this.key.is_public)
             {
-                key = crypto.randomBytes(Crypt._AES_128_KEY_SIZE);
+                var buf = crypto.randomBytes(Crypt._AES_128_KEY_SIZE);
 &nbsp;
                 ekey = crypto.publicEncrypt(
                 {
                     key: this.key.key,
                     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
-                }, key);
+                }, buf);
 &nbsp;
                 if (this.encoding)
                 {
                     ekey = ekey.toString(this.encoding);
                 }
+&nbsp;
+                key = crypto.createSecretKey(buf);
             }
             else if (!this.key.is_private)
             {
@@ -5024,12 +5036,12 @@ if (typeof require === 'function')
 &nbsp;
             if (this.key.is_private)
             {
-                key = crypto.privateDecrypt(
+                key = crypto.createSecretKey(crypto.privateDecrypt(
                 {
                     key: this.key.key,
                     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
                 }, this.encoding ? Buffer.from(data.ekey, this.encoding) :
-                                   data.ekey);
+                                   data.ekey));
             }
             else if (!this.key.is_public)
             {
@@ -5665,7 +5677,7 @@ if (typeof exports === 'object')
 </div><!-- /wrapper -->
 <div class='footer quiet pad2 space-top1 center small'>
   Code coverage
-  generated by <a href="https://istanbul.js.org/" target="_blank">istanbul</a> at Thu Jun 06 2019 22:45:02 GMT+0100 (British Summer Time)
+  generated by <a href="https://istanbul.js.org/" target="_blank">istanbul</a> at Sun Jul 21 2019 21:56:45 GMT+0100 (British Summer Time)
 </div>
 </div>
 <script src="prettify.js"></script>

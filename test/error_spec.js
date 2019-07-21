@@ -688,7 +688,7 @@ describe('errors', function ()
             }
             else
             {
-                expect(crypt.key.toString('binary')).to.equal(key);
+                expect(crypt.key.export().toString('binary')).to.equal(key);
             }
             crypt.encrypt('hello', function (err, edata)
             {
