@@ -1,7 +1,7 @@
 {
   "name": "simple-crypt",
   "description": "Simple and easy-to-use encryption and signing module",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "homepage": "https://github.com/davedoesdev/simple-crypt",
   "author": {
     "name": "David Halls",
