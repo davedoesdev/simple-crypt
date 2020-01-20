@@ -2,8 +2,7 @@
 "use strict";
 
 var mocha_options = {
-    timeout: 10 * 60 * 1000,
-    reporter: 'dot'
+    timeout: 10 * 60 * 1000
 };
 
 module.exports = function (grunt)

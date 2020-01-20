@@ -305,13 +305,14 @@ describe('errors', function ()
             Crypt[method + '_stream'](key, s, function (err)
             {
                 expect(err.message).to.equal('make error');
-                Crypt[method + '_stream'](key3, s, function (err, in_s)
+                Crypt[method + '_stream'](key3, s, { maxSize: 64 * 1024 },
+                function (err, in_s)
                 {
                     expect(err).to.equal(null);
                     expect(in_s).to.be.an.instanceof(stream.Transform);
                     in_s.on('error', function (err)
                     {
-                        expect(err.message).to.equal('Message length is less than zero');
+                        expect(err.message).to.equal('Message is larger than the allowed maximum of 65536');
                         cb();
                     });
                     s.write(Buffer.from([0xff, 0xff, 0xff, 0xff]));
@@ -731,7 +732,9 @@ describe('errors', function ()
             {
                 expect(err.message).to.be.oneOf([
                     'Iterations not a number',
-                    'The "iterations" argument must be of type number. Received type string'
+                    'The "iterations" argument must be of type number. Received type string',
+                    'The "iterations" argument must be of type number. Received type string (\'hello\')'
+
                 ]);
 
                 sinon.stub(crypto, 'pbkdf2').callsFake(function (password, salt, iterations, keylen, digest, callback)

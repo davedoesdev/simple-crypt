@@ -775,7 +775,7 @@ preceding chunk.
 
 - `{Buffer | String | Object} key` Key to use for encryping the data in the stream.
 - `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to encrypt.
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/davedoesdev/frame-stream#frameencodeopts).
 - `{Function} cb` Function called with the encrypted stream. It's passed the following arguments:
 
 
@@ -793,7 +793,7 @@ preceding chunk.
 
 - `{Buffer | String | Object} key` Key to use for decrypting the data in the stream.
 - `{Readable} s` The encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to decrypt.
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/davedoesdev/frame-stream#framedecodeopts).
 - `{Function} cb` Function called with the decrypted stream. It's passed the following arguments:
 
 
@@ -814,7 +814,7 @@ preceding chunk.
 
 - `{Buffer | String | Object} key` Key to use for signing the data in the stream.
 - `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign.
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/davedoesdev/frame-stream#frameencodeopts).
 - `{Function} cb` Function called with the signed stream. It's passed the following arguments:
 
 
@@ -832,7 +832,7 @@ preceding chunk.
 
 - `{Buffer | String | Object} key` Key to use for verifying the data in the stream.
 - `{Readable} s` The signed [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify.
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/davedoesdev/frame-stream#framedecodeopts).
 - `{Function} cb` Function called with the verified stream. It's passed the following arguments:
 
 
@@ -851,7 +851,7 @@ preceding chunk.
 - `{Buffer | String | Object} signing_key` Key to use for signing the data in the stream.
 - `{Buffer | String | Object} encryption_key` Key to use for encryping the data in the stream.
 - `{Readable} s` The [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to sign and encrypt.
-- `{Object} [options]` Options for [`frame.encode`](https://github.com/rkusa/frame-stream#frameencodeopts).
+- `{Object} [options]` Options for [`frame.encode`](https://github.com/davedoesdev/frame-stream#frameencodeopts).
 - `{Function} cb` Function called with the signed and encrypted stream. It's passed the following arguments:
 
 
@@ -870,7 +870,7 @@ preceding chunk.
 - `{Buffer | String | Object} decryption_key` Key to use for decrypting the data in the stream.
 - `{Buffer | String | Object} verifying_key` Key to use for verifying the data in the stream.
 - `{Readable} s` The signed and encrypted [`stream.Readable`](https://nodejs.org/dist/latest-v4.x/docs/api/stream.html#stream_class_stream_readable_1) to verify and decrypt.
-- `{Object} [options]` Options for [`frame.decode`](https://github.com/rkusa/frame-stream#framedecodeopts).
+- `{Object} [options]` Options for [`frame.decode`](https://github.com/davedoesdev/frame-stream#framedecodeopts).
 - `{Function} cb` Function called with the verified and decrypted stream. It's passed the following arguments:
 
 
