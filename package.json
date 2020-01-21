@@ -19,7 +19,7 @@
   "main": "lib/simple-crypt.js",
   "scripts": {
     "test": "grunt lint test",
-    "travis-test": "grunt install lint test-browser test-browser-slow coverage coveralls"
+    "travis-test": "grunt install lint test-browser && grunt test-browser-slow coverage coveralls"
   },
   "directories": {
     "test": "test",
