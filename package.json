@@ -45,7 +45,7 @@
     "coveralls": "^3.1.0",
     "grunt": "^1.2.1",
     "grunt-apidox": "^2.0.10",
-    "grunt-bg-shell": "^2.3.3",
+    "grunt-exec": "^3.0.0",
     "grunt-contrib-concat": "^1.0.1",
     "grunt-contrib-jshint": "^2.1.0",
     "grunt-env": "^1.0.1",

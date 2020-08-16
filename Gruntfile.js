@@ -88,36 +88,25 @@ module.exports = function (grunt)
             }
         },
 
-        bgShell: {
+        exec: {
             'cover-fast': {
-                cmd: "./node_modules/.bin/nyc -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test",
-                fail: true,
-                execOpts: {
-                    maxBuffer: 0
-                }
+                cmd: "./node_modules/.bin/nyc -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test"
             },
 
             'cover-slow': {
-                cmd: "./node_modules/.bin/nyc --no-clean -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test-slow",
-                fail: true,
-                execOpts: {
-                    maxBuffer: 0
-                }
+                cmd: "./node_modules/.bin/nyc --no-clean -x Gruntfile.js -x 'test/**' ./node_modules/.bin/grunt test-slow"
             },
 
             'cover-report': {
-                cmd: './node_modules/.bin/nyc report -r lcov',
-                fail: true
+                cmd: './node_modules/.bin/nyc report -r lcov'
             },
 
             'cover-check': {
-                cmd: './node_modules/.bin/nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100',
-                fail: true
+                cmd: './node_modules/.bin/nyc check-coverage --statements 100 --branches 100 --functions 100 --lines 100'
             },
 
             coveralls: {
-                cmd: 'cat coverage/lcov.info | coveralls',
-                fail: true
+                cmd: 'cat coverage/lcov.info | coveralls'
             },
 
             bench: {
@@ -129,8 +118,7 @@ module.exports = function (grunt)
             },
 
             start_phantomjs: {
-                cmd: './node_modules/.bin/phantomjs --webdriver=4444 --webdriver-loglevel=ERROR --debug=false',
-                bg: true
+                cmd: './node_modules/.bin/phantomjs --webdriver=4444 --webdriver-loglevel=ERROR --debug=false &'
             },
 
             stop_phantomjs: {
@@ -138,8 +126,7 @@ module.exports = function (grunt)
             },
 
             bundle: {
-                cmd: './node_modules/.bin/webpack --mode production --config test/webpack.config.js',
-                fail: true
+                cmd: './node_modules/.bin/webpack --mode production --config test/webpack.config.js'
             },
 
             install: {
@@ -148,8 +135,7 @@ module.exports = function (grunt)
                      'wget -nv -O slowaes.zip https://storage.googleapis.com/google-code-archive-source/v2/code.google.com/slowaes/source-archive.zip && ' +
                      'unzip -q slowaes.zip && ' +
                      'rm -f slowaes.zip && ' +
-                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem',
-                fail: true
+                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem'
             }
         }
     });
@@ -157,7 +143,7 @@ module.exports = function (grunt)
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-mocha-test');
     grunt.loadNpmTasks('grunt-apidox');
-    grunt.loadNpmTasks('grunt-bg-shell');
+    grunt.loadNpmTasks('grunt-exec');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-env');
 
@@ -169,25 +155,25 @@ module.exports = function (grunt)
     grunt.registerTask('test-browser-slow', ['build',
                                              'env:bslow',
                                              'mochaTest:browser']);
-    grunt.registerTask('test-browser', ['bgShell:bundle',
+    grunt.registerTask('test-browser', ['exec:bundle',
                                         'build',
-                                        'bgShell:start_phantomjs',
+                                        'exec:start_phantomjs',
                                         'sleep:10000',
                                         'usetheforce_on',
                                         'mochaTest:browser',
-                                        'bgShell:stop_phantomjs',
+                                        'exec:stop_phantomjs',
                                         'usetheforce_restore']);
     grunt.registerTask('docs', 'apidox');
-    grunt.registerTask('coverage', ['bgShell:cover-fast',
-                                    'bgShell:cover-slow',
-                                    'bgShell:cover-report',
-                                    'bgShell:cover-check']);
-    grunt.registerTask('coveralls', 'bgShell:coveralls');
-    grunt.registerTask('bench', 'bgShell:bench');
-    grunt.registerTask('bench-gfm', 'bgShell:bench_gfm');
+    grunt.registerTask('coverage', ['exec:cover-fast',
+                                    'exec:cover-slow',
+                                    'exec:cover-report',
+                                    'exec:cover-check']);
+    grunt.registerTask('coveralls', 'exec:coveralls');
+    grunt.registerTask('bench', 'exec:bench');
+    grunt.registerTask('bench-gfm', 'exec:bench_gfm');
     grunt.registerTask('build', ['concat:simple-crypt',
                                  'concat:simple-crypt-deps']);
-    grunt.registerTask('install', 'bgShell:install');
+    grunt.registerTask('install', 'exec:install');
     grunt.registerTask('default', ['lint', 'test']);
 
     grunt.registerTask('sleep', function (ms)
