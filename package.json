@@ -35,28 +35,28 @@
     "pbkdf2"
   ],
   "dependencies": {
-    "frame-stream": "^2.0.0"
+    "frame-stream": "^2.0.3"
   },
   "devDependencies": {
-    "async": "^3.1.0",
+    "async": "^3.2.0",
     "b": "git://github.com/davedoesdev/b.git",
     "byline": "^5.0.0",
     "chai": "^4.2.0",
-    "coveralls": "^3.0.9",
-    "grunt": "^1.0.4",
-    "grunt-apidox": "^2.0.7",
+    "coveralls": "^3.1.0",
+    "grunt": "^1.2.1",
+    "grunt-apidox": "^2.0.10",
     "grunt-bg-shell": "^2.3.3",
     "grunt-contrib-concat": "^1.0.1",
     "grunt-contrib-jshint": "^2.1.0",
-    "grunt-env": "^1.0.0",
+    "grunt-env": "^1.0.1",
     "grunt-mocha-test": "^0.13.3",
-    "mocha": "^7.0.0",
-    "nyc": "^15.0.0",
+    "mocha": "^8.1.1",
+    "nyc": "^15.1.0",
     "phantomjs-prebuilt": "^2.1.16",
-    "sinon": "^8.1.0",
+    "sinon": "^9.0.3",
     "wd": "^1.12.1",
-    "webpack": "^4.41.5",
-    "webpack-cli": "^3.3.10"
+    "webpack": "^4.44.1",
+    "webpack-cli": "^3.3.12"
   },
   "engines": {
     "node": ">=12"
