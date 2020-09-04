@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 36
+/svn/!svn/ver/34/trunk/ruby/examples
+END
+example_helper.rb
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/!svn/ver/34/trunk/ruby/examples/example_helper.rb
+END
+encrypt_buffer.rb
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/!svn/ver/34/trunk/ruby/examples/encrypt_buffer.rb
+END
+openssl_example.rb
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/!svn/ver/34/trunk/ruby/examples/openssl_example.rb
+END
+encrypt_block.rb
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/34/trunk/ruby/examples/encrypt_block.rb
+END
+encrypt_stream.rb
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/svn/!svn/ver/34/trunk/ruby/examples/encrypt_stream.rb
+END

@@ -130,12 +130,7 @@ module.exports = function (grunt)
             },
 
             install: {
-                cmd: 'git submodule init && ' +
-                     'git submodule update && ' +
-                     'wget -nv -O slowaes.zip https://storage.googleapis.com/google-code-archive-source/v2/code.google.com/slowaes/source-archive.zip && ' +
-                     'unzip -q slowaes.zip && ' +
-                     'rm -f slowaes.zip && ' +
-                     'hg clone https://bitbucket.org/adrianpasternak/js-rsa-pem'
+                cmd: 'git submodule init && git submodule update'
             }
         }
     });
@@ -173,7 +168,6 @@ module.exports = function (grunt)
     grunt.registerTask('bench-gfm', 'exec:bench_gfm');
     grunt.registerTask('build', ['concat:simple-crypt',
                                  'concat:simple-crypt-deps']);
-    grunt.registerTask('install', 'exec:install');
     grunt.registerTask('default', ['lint', 'test']);
 
     grunt.registerTask('sleep', function (ms)

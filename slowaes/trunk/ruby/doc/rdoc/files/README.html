@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE html 
+     PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>File: README</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+  <meta http-equiv="Content-Script-Type" content="text/javascript" />
+  <link rel="stylesheet" href=".././rdoc-style.css" type="text/css" media="screen" />
+  <script type="text/javascript">
+  // <![CDATA[
+
+  function popupCode( url ) {
+    window.open(url, "Code", "resizable=yes,scrollbars=yes,toolbar=no,status=no,height=150,width=400")
+  }
+
+  function toggleCode( id ) {
+    if ( document.getElementById )
+      elem = document.getElementById( id );
+    else if ( document.all )
+      elem = eval( "document.all." + id );
+    else
+      return false;
+
+    elemStyle = elem.style;
+    
+    if ( elemStyle.display != "block" ) {
+      elemStyle.display = "block"
+    } else {
+      elemStyle.display = "none"
+    }
+
+    return true;
+  }
+  
+  // Make codeblocks hidden by default
+  document.writeln( "<style type=\"text/css\">div.method-source-code { display: none }</style>" )
+  
+  // ]]>
+  </script>
+
+</head>
+<body>
+
+
+
+  <div id="fileHeader">
+    <h1>README</h1>
+    <table class="header-table">
+    <tr class="top-aligned-row">
+      <td><strong>Path:</strong></td>
+      <td>README
+      </td>
+    </tr>
+    <tr class="top-aligned-row">
+      <td><strong>Last Update:</strong></td>
+      <td>Sun Jul 29 18:32:22 +0200 2007</td>
+    </tr>
+    </table>
+  </div>
+  <!-- banner header -->
+
+  <div id="bodyContent">
+
+
+
+  <div id="contextContent">
+
+    <div id="description">
+      <p>
+README for ruby-aes
+</p>
+<h6>=============</h6>
+<p>
+Ruby AES &lt;<a
+href="http://rubyforge.org/projects/ruby-aes">rubyforge.org/projects/ruby-aes</a>&gt;
+is an implementation of the Rijndael algorithm.
+</p>
+<p>
+Written by Alex Boussinet &lt;<a
+href="mailto:alex.boussinet@gmail.com">alex.boussinet@gmail.com</a>&gt;
+</p>
+<p>
+This release is mainly an import from the Ruby Application Archive (RAA).
+I&#8216;ve added all the versions I was working on (algorithm variations)
+and a new C extension for improved performance. 6 variations are available:
+</p>
+<ul>
+<li>&quot;Normal&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation of the Rijndael algorithm specifications. Useful
+for understanding the algorithm.
+</p>
+<ul>
+<li>&quot;Optimized&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation based on the &quot;Normal&quot; code but optimized
+for speed. The SubBytes and ShiftRows methods have been combined.
+</p>
+<ul>
+<li>&quot;Table Optimized 1&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation based on the C code from the Rijndael website. The
+arrays of constants are bigger because all the operations are already
+computed so it&#8216;s mainly based on table look ups.
+</p>
+<ul>
+<li>&quot;Table Optimized 2&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation based on the &quot;Table Optimized 1&quot; code.
+The arrays of constants are bigger because all the operations are already
+computed and table look ups are also combined.
+</p>
+<ul>
+<li>&quot;Table Unroll Optimized 1&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation based on the &quot;Table Optimized 1&quot; code.
+The change here is that the loops are unrolled.
+</p>
+<ul>
+<li>&quot;Table Unroll Optimized 2&quot;:
+
+</li>
+</ul>
+<p>
+Pure Ruby implementation based on the &quot;Table Optimized 2&quot; code.
+The change here is that the loops are unrolled.
+</p>
+<ul>
+<li>&quot;EXT Table Unroll Optimized 2&quot;:
+
+</li>
+</ul>
+<p>
+C extension based on the &quot;Table Unroll Optimized 2&quot; code. This
+extension is provided for major speed improvement.
+</p>
+<p>
+All those variations share the same API:
+</p>
+<pre>
+  Default key_length: 128
+  Default mode: 'ECB'
+  Default IV: 16 null chars (&quot;00&quot; * 16 in hex format)
+  Default key: 16 null chars (&quot;00&quot; * 16 in hex format)
+  Default input text: &quot;PLAINTEXT&quot;
+
+  Aes.check_key(key_string, key_length)
+  Aes.check_iv(iv_string)
+  Aes.check_kl(key_length)
+  Aes.check_mode(mode)
+  Aes.init(key_length, mode, key, iv)
+  Aes.encrypt_block(key_length, mode, key, iv, block) # no padding
+  Aes.decrypt_block(key_length, mode, key, iv, block) # no padding
+  Aes.encrypt_buffer(key_length, mode, key, iv, block) # padding
+  Aes.decrypt_buffer(key_length, mode, key, iv, block) # padding
+  Aes.encrypt_stream(key_length, mode, key, iv, sin, sout)
+  Aes.decrypt_stream(key_length, mode, key, iv, sin, sout)
+  Aes.bs() # block size for read operations (stream)
+  Aes.bs=(bs)
+</pre>
+<p>
+Valid modes are:
+</p>
+<pre>
+    * ECB (Electronic Code Book)
+    * CBC (Cipher Block Chaining)
+    * OFB (Output Feedback)
+    * CFB (Cipher Feedback)
+</pre>
+<p>
+Valid key length:
+</p>
+<pre>
+    * 128 bits
+    * 192 bits
+    * 256 bits
+</pre>
+<p>
+For a really good encryption, 256 bits CBC is recommanded.
+</p>
+<p>
+For more information on AES-Rijndael, see: &lt;<a
+href="http://csrc.nist.gov/encryption/aes/rijndael">csrc.nist.gov/encryption/aes/rijndael</a>/&gt;
+</p>
+
+    </div>
+
+
+   </div>
+
+
+  </div>
+
+
+    <!-- if includes -->
+
+    <div id="section">
+
+
+
+
+
+      
+
+
+    <!-- if method_list -->
+
+
+  </div>
+
+
+<div id="validator-badges">
+  <p><small><a href="http://validator.w3.org/check/referer">[Validate]</a></small></p>
+</div>
+
+</body>
+</html>

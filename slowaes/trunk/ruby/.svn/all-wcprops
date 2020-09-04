@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 27
+/svn/!svn/ver/34/trunk/ruby
+END
+COPYING
+K 25
+svn:wc:ra_dav:version-url
+V 35
+/svn/!svn/ver/34/trunk/ruby/COPYING
+END
+README.markdown
+K 25
+svn:wc:ra_dav:version-url
+V 43
+/svn/!svn/ver/34/trunk/ruby/README.markdown
+END
+Rakefile
+K 25
+svn:wc:ra_dav:version-url
+V 36
+/svn/!svn/ver/34/trunk/ruby/Rakefile
+END

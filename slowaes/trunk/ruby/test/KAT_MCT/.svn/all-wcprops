@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 40
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT
+END
+table.128
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT/table.128
+END
+table.192
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT/table.192
+END
+table.256
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT/table.256
+END
+aes_kat_mct.rb
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT/aes_kat_mct.rb
+END
+rijndael-vals.zip
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/!svn/ver/34/trunk/ruby/test/KAT_MCT/rijndael-vals.zip
+END

@@ -1,0 +1,30 @@
+The tests are coded in Python and use Python-Spidermonkey (see:
+http://code.google.com/p/python-spidermonkey/) to run Javascript and Python
+code "in parallel" to ensure intermediate and final results match, &c.  (Note
+that to install Python-Spidermonkey you first need to install Pyrex, see
+http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/).
+
+Future scripting languages could use a similar approach (e.g. see
+http://www.goto.info.waseda.ac.jp/~fukusima/ruby/python/doc/index.html for the
+Ruby/Python module).
+
+Tests rely on smutil.py (for testing JS AES) and pyutil.py (for testing Python
+AES) to properly import the aes.* modules and offer access to them, as well as
+auxiliary helpful utilities.
+
+Tests currently present: smoketest_js.py (a tiny smoke-test of encryption and
+decryption in all 3 modes); compare_pj.py (a similar smoke-test, but comparing
+the JS and Python implementations of AES to ensure identical results).
+
+To run the tests:
+$ cd slowaes/tests
+$ python smoketests_py.py
+$ python smoketests_js.py
+$ pyton compare_pj.py
+
+[[Note: the latter is currently known to be broken with a mysterious JS error
+"array.push is not a function" (?)]]
+
+TODO: write many more tests, including integration tests ensuring
+interoperability with other AES implementations.
+

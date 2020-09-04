@@ -1,0 +1,55 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+                    "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+</head>
+<body>
+	<h2>RSA PEM Key Encoding/Decoding Demo.</h2>
+	<label for="privateKeyLength">Key length</label>
+	<input id="privateKeyLength" type="text" value="768"/><br/>
+	<input id="privateKeyEnc1" type="button" value="Generate private key in PKCS#1 format"/><br/>
+	<input id="privateKeyEnc8" type="button" value="Generate private key in PKCS#8 format"/><br/>
+	<input id="publicKeyEnc" type="button" value="Generate public key in .x509 format"/><br/>
+	<textarea cols=70 rows=20 id="privateKeyText"></textarea>
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script type="text/javascript" src="dependencies/jsbn.js"></script>
+    <script type="text/javascript" src="dependencies/jsbn2.js"></script>
+    <script type="text/javascript" src="dependencies/prng4.js"></script>
+    <script type="text/javascript" src="dependencies/rng.js"></script>
+    <script type="text/javascript" src="dependencies/rsa.js"></script>
+    <script type="text/javascript" src="dependencies/rsa2.js"></script>
+    <script type="text/javascript" src="dependencies/base64.js"></script>
+    <script type="text/javascript" src="dependencies/asn1hex.js"></script>
+    <script type="text/javascript" src="http://code.jquery.com/qunit/git/qunit.js"></script>
+	<script type="text/javascript" src="rsa-pem.js"></script>
+	<script>
+	$(document).ready(function() {
+		$("#privateKeyEnc1").click(function (event) {
+			var len = $("#privateKeyLength").val();
+			len = parseInt(len);
+			var privateKey = new RSAKey();
+			privateKey.generate(len, "3");
+			var pemKey = privateKey.privateKeyToPkcs1PemString();
+			$("#privateKeyText").val(pemKey);
+		});
+		$("#privateKeyEnc8").click(function (event) {
+			var len = $("#privateKeyLength").val();
+			len = parseInt(len);
+			var privateKey = new RSAKey();
+			privateKey.generate(len, "3");
+			var pemKey = privateKey.privateKeyToPkcs8PemString();
+			$("#privateKeyText").val(pemKey);
+		});
+		$("#publicKeyEnc").click(function (event) {
+			var len = $("#privateKeyLength").val();
+			len = parseInt(len);
+			var privateKey = new RSAKey();
+			privateKey.generate(len, "3");
+			var pemKey = privateKey.publicKeyToX509PemString();
+			$("#privateKeyText").val(pemKey);
+		});
+	});
+	
+	</script>
+</body>
+</html>
